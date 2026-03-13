@@ -4,15 +4,6 @@ import type { ZodSchema } from 'zod';
 
 // ─── Auth schemas ───────────────────────────────────────────────────────────
 
-export const SendOtpSchema = z.object({
-  email: z.string().email('Email không hợp lệ').max(254),
-});
-
-export const VerifyOtpSchema = z.object({
-  email: z.string().email().max(254),
-  otp: z.string().length(6).regex(/^\d{6}$/, 'OTP phải là 6 chữ số'),
-});
-
 export const RegisterSchema = z.object({
   email: z.string().email().max(254),
   password: z.string().min(1, 'Mật khẩu tối thiểu 1 ký tự').max(128),

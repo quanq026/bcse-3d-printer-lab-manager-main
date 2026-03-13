@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Printer, ShieldCheck, FileText, CheckCircle2, Loader2, AlertCircle, Globe, Mail, Eye, EyeOff, ArrowRight, MapPin, Layers, X, ScrollText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Printer, ShieldCheck, FileText, CheckCircle2, Loader2, AlertCircle, Globe, Eye, EyeOff, ArrowRight, MapPin, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { api } from '../lib/api';
@@ -55,13 +55,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   const [studentId, setStudentId] = useState('');
   const [phone, setPhone] = useState('');
   const [supervisor, setSupervisor] = useState('');
-  const [agreedPolicy, setAgreedPolicy] = useState(false);
-  const [showTermsModal, setShowTermsModal] = useState(false);
-  const [hasReadTerms, setHasReadTerms] = useState(false);
-  const termsScrollRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
-    api.getSettings().then(setSettings).catch(() => {});
+    api.getSettings().then(setSettings).catch(() => { });
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -81,7 +78,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     setError('');
     if (!VJU_REGEX.test(email)) { setError(t('invalidEmail')); return; }
     if (password !== confirmPass) { setError('Mật khẩu xác nhận không khớp'); return; }
-    if (!agreedPolicy) { setError('Vui lòng đồng ý với Quy định phòng Lab'); return; }
+
     setLoading(true);
     try {
       await api.register({ email, password, fullName, studentId, phone, supervisor });
@@ -316,12 +313,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 <input type="text" placeholder="Dr. Nguyễn Văn B" value={supervisor} onChange={e => setSupervisor(e.target.value)} className="auth-input" />
               </Field>
               <Field label={t('email')} hint={t('emailHint')}>
-                <div className="relative">
-                  <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#a8a29e' }} />
-                  <input type="email" placeholder={t('emailPlaceholder')} required value={email} onChange={e => setEmail(e.target.value)}
-                    className="auth-input pl-9"
-                    style={{ borderColor: email && !VJU_REGEX.test(email) ? '#fca5a5' : '' }} />
-                </div>
+                <input type="email" placeholder={t('emailPlaceholder')} required value={email} onChange={e => setEmail(e.target.value)}
+                  className="auth-input"
+                  style={{ borderColor: email && !VJU_REGEX.test(email) ? '#fca5a5' : '' }} />
                 {email && !VJU_REGEX.test(email) && (
                   <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{t('invalidEmail')}</p>
                 )}
@@ -342,112 +336,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 {confirmPass && confirmPass !== password && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>Mật khẩu không khớp</p>}
               </Field>
 
-              {/* Policy agreement */}
-              <div className="pt-1 space-y-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowTermsModal(true); }}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all hover:bg-amber-50"
-                  style={{ background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e' }}
-                >
-                  <ScrollText size={14} />
-                  Đọc Điều khoản &amp; Quy định sử dụng Lab
-                  {hasReadTerms && <CheckCircle2 size={14} className="ml-auto text-emerald-600" />}
-                </button>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <div
-                    onClick={() => { if (hasReadTerms) setAgreedPolicy(!agreedPolicy); }}
-                    className={cn("mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all",
-                      agreedPolicy ? "border-amber-500 bg-amber-500" : "border-stone-300 bg-white",
-                      !hasReadTerms ? "opacity-40 cursor-not-allowed" : "cursor-pointer")}
-                  >
-                    {agreedPolicy && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                  </div>
-                  <span className="text-xs leading-relaxed" style={{ color: hasReadTerms ? '#44403c' : '#a8a29e' }}>
-                    {t('agreePolicy')} <span style={{ color: '#d97706', fontWeight: 700 }}>{t('labPolicy')}</span> {t('safetyCommit')}
-                    {!hasReadTerms && <span className="block text-[11px] text-amber-600">← Hãy đọc điều khoản trước</span>}
-                  </span>
-                </label>
-              </div>
-
-              <SubmitBtn loading={loading} label={t('register')} disabled={!agreedPolicy || (!!email && !VJU_REGEX.test(email)) || (!!confirmPass && confirmPass !== password)} />
+              <SubmitBtn loading={loading} label={t('register')} disabled={(!!email && !VJU_REGEX.test(email)) || (!!confirmPass && confirmPass !== password)} />
             </form>
           )}
         </div>
       </div>
 
-      {/* Terms Modal */}
-      <AnimatePresence>
-        {showTermsModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-            onClick={e => { if (e.target === e.currentTarget) setShowTermsModal(false); }}
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden"
-              style={{ maxHeight: '80vh' }}
-            >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
-                <div className="flex items-center gap-2">
-                  <ScrollText size={18} style={{ color: '#d97706' }} />
-                  <h3 className="font-black text-base" style={{ color: '#1c1917', fontFamily: 'Georgia, serif' }}>
-                    Điều khoản &amp; Quy định Lab
-                  </h3>
-                </div>
-                <button onClick={() => setShowTermsModal(false)} className="p-1.5 rounded-lg hover:bg-stone-100 transition-colors">
-                  <X size={18} style={{ color: '#78716c' }} />
-                </button>
-              </div>
 
-              <div
-                ref={termsScrollRef}
-                className="flex-1 overflow-y-auto px-6 py-5 text-sm leading-relaxed"
-                style={{ color: '#44403c' }}
-                onScroll={e => {
-                  const el = e.currentTarget;
-                  if (el.scrollHeight - el.scrollTop - el.clientHeight < 30) {
-                    setHasReadTerms(true);
-                  }
-                }}
-              >
-                {settings.terms_content ? (
-                  <pre className="whitespace-pre-wrap font-sans">{settings.terms_content}</pre>
-                ) : (
-                  <div className="text-center py-10 text-stone-400">
-                    <ScrollText size={40} className="mx-auto mb-3 opacity-30" />
-                    <p className="text-sm">Admin chưa cập nhật nội dung điều khoản.</p>
-                    <p className="text-xs mt-1">Liên hệ quản trị viên để biết thêm chi tiết.</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="px-6 py-4 border-t border-stone-100" style={{ background: '#fdf8f0' }}>
-                {!hasReadTerms && settings.terms_content ? (
-                  <p className="text-xs text-center" style={{ color: '#a8a29e' }}>
-                    Cuộn xuống cuối để xác nhận đã đọc
-                  </p>
-                ) : (
-                  <button
-                    onClick={() => { setHasReadTerms(true); setShowTermsModal(false); }}
-                    className="w-full py-2.5 font-bold text-sm rounded-xl text-white transition-all"
-                    style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}
-                  >
-                    <CheckCircle2 size={16} className="inline mr-2" />
-                    Đã đọc và hiểu
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Inline styles for auth inputs */}
       <style>{`
@@ -467,6 +362,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           box-shadow: 0 0 0 3px rgba(217,119,6,0.12);
         }
         .auth-input::placeholder { color: #a8a29e; }
+        .auth-input::-ms-reveal,
+        .auth-input::-ms-clear {
+          display: none;
+        }
       `}</style>
     </div>
   );

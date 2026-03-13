@@ -45,10 +45,6 @@ export const api = {
     post<{ message: string }>('/auth/register', data),
   me: () => get<any>('/auth/me'),
 
-  // OTP
-  sendOtp: (email: string) => post<{ message: string }>('/auth/send-otp', { email }),
-  verifyOtp: (email: string, otp: string) => post<{ message: string }>('/auth/verify-otp', { email, otp }),
-
   // Jobs
   getJobs: () => get<any[]>('/jobs'),
   getJob: (id: string) => get<any>(`/jobs/${id}`),

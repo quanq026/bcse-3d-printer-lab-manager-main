@@ -33,31 +33,24 @@ interface BookingWizardProps {
   currentUser: any;
 }
 
-const COLOR_OPTIONS = [
-  { label: 'Trắng', hex: '#ffffff' },
-  { label: 'Đen', hex: '#1a1a1a' },
-  { label: 'Xám', hex: '#9ca3af' },
-  { label: 'Xanh dương', hex: '#3b82f6' },
-  { label: 'Xanh lá', hex: '#22c55e' },
-  { label: 'Đỏ', hex: '#ef4444' },
-  { label: 'Vàng', hex: '#eab308' },
-  { label: 'Cam', hex: '#f97316' },
-  { label: 'Tím', hex: '#a855f7' },
-  { label: 'Hồng', hex: '#ec4899' },
-  { label: 'Khác', hex: '#64748b' },
-];
+// Color name → hex mapping for display
+const COLOR_HEX: Record<string, string> = {
+  'Trắng': '#ffffff', 'Đen': '#1a1a1a', 'Xám': '#9ca3af',
+  'Xanh dương': '#3b82f6', 'Xanh lá': '#22c55e', 'Đỏ': '#ef4444',
+  'Vàng': '#eab308', 'Cam': '#f97316', 'Tím': '#a855f7', 'Hồng': '#ec4899',
+};
 
 const BRAND_OPTIONS: Record<string, string[]> = {
-  PLA:  ['Bambu Lab', 'Elegoo', 'Sunlu', 'eSUN', 'Polymaker', 'Creality', 'Khác'],
+  PLA: ['Bambu Lab', 'Elegoo', 'Sunlu', 'eSUN', 'Polymaker', 'Creality', 'Khác'],
   PETG: ['Bambu Lab', 'Elegoo', 'Sunlu', 'eSUN', 'Polymaker', 'Khác'],
-  TPU:  ['Bambu Lab', 'Sunlu', 'eSUN', 'Sainsmart', 'Khác'],
-  ABS:  ['Bambu Lab', 'eSUN', 'Polymaker', 'Hatchbox', 'Khác'],
+  TPU: ['Bambu Lab', 'Sunlu', 'eSUN', 'Sainsmart', 'Khác'],
+  ABS: ['Bambu Lab', 'eSUN', 'Polymaker', 'Hatchbox', 'Khác'],
 };
 
 const SUB_SLOTS: Record<string, string[]> = {
-  'Sáng':  ['8h–9h', '9h–10h', '10h–11h', '11h–12h'],
+  'Sáng': ['8h–9h', '9h–10h', '10h–11h', '11h–12h'],
   'Chiều': ['13h–14h', '14h–15h', '15h–16h', '16h–17h'],
-  'Tối':   ['17h–18h', '18h–19h', '19h–20h'],
+  'Tối': ['17h–18h', '18h–19h', '19h–20h'],
 };
 
 export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCancel, currentUser }) => {
@@ -80,7 +73,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
     jobName: '',
     description: '',
     materialType: MaterialType.PLA,
-    colors: ['Trắng'] as string[],
+    colors: [] as string[],
     customColor: '',
     brand: '',
     estimatedTimeValue: '',
@@ -105,10 +98,26 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
   const isSelf = formData.printMode === 'self';
   const isLabMaterial = formData.materialSource === MaterialSource.LAB;
 
-  // Check if lab has stock for selected material (remaining > threshold)
-  const labHasStock = inventory.some(
-    i => i.material === formData.materialType && i.remainingGrams > i.threshold
-  );
+  // ── Inventory-driven material/color (Shopee-style cross-filtering) ──
+  const inStockItems = inventory.filter(i => i.remainingGrams > i.threshold);
+
+  // All unique materials & colors that are in stock
+  const allMaterials = [...new Set(inStockItems.map(i => i.material))];
+  const allColors = [...new Set(inStockItems.map(i => i.color))].filter(Boolean);
+
+  // Cross-filtered: available colors given selected material (or all if none)
+  const availableColors = formData.materialType
+    ? [...new Set(inStockItems.filter(i => i.material === formData.materialType).map(i => i.color))].filter(Boolean)
+    : allColors;
+
+  // Cross-filtered: available materials given selected color(s) (or all if none)
+  const selectedColors = formData.colors.filter(c => c !== 'Khác');
+  const availableMaterials = selectedColors.length > 0
+    ? [...new Set(inStockItems.filter(i => selectedColors.includes(i.color)).map(i => i.material))]
+    : allMaterials;
+
+  // Check if lab has stock for selected material
+  const labHasStock = inStockItems.some(i => i.material === formData.materialType);
 
   // Step flow:
   // Tự in + Lab:  1 → 2 → 3 → 4 → 5
@@ -171,7 +180,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
       if (name.endsWith('.gcode.3mf')) {
         const JSZip = (await import('jszip')).default;
         const zip = await JSZip.loadAsync(file);
-        
+
         // Extract nozzle from plate json or project settings
         const plateJsonFile = Object.keys(zip.files).find(n => n.endsWith('.json') && n.includes('plate'));
         if (plateJsonFile) {
@@ -190,7 +199,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
         const configFile = Object.keys(zip.files).find(n => n.includes('slice_info.config'));
         if (configFile) {
           const configText = await zip.files[configFile].async('text');
-          
+
           let weight = 0;
           let timeSecs = 0;
           let slicer = '';
@@ -203,7 +212,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
           const wMatch1 = configText.match(/<([a-zA-Z0-9_]*?)weight>([\d.]+)<\/\1weight>/i);
           // Format 2: <metadata key="weight" value="12.3"/>
           const wMatch2 = configText.match(/key="[a-zA-Z0-9_]*?weight"\s+value="([\d.]+)"/i);
-          
+
           if (wMatch1) weight = parseFloat(wMatch1[2]);
           else if (wMatch2) weight = parseFloat(wMatch2[1]);
 
@@ -221,7 +230,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
             setFormData(f => ({ ...f, estimatedTimeValue: timeH.toString(), estimatedTimeUnit: 'hours' }));
           }
           if (slicer) setFormData(f => ({ ...f, slicerEngine: slicer }));
-          
+
           if (weight > 0 && timeSecs > 0) return;
         }
 
@@ -260,7 +269,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
           const h = parseInt(tMatch1[2] || '0');
           const m = parseInt(tMatch1[3] || '0');
           const s = parseInt(tMatch1[4] || '0');
-          
+
           // only update if there's actually a match for any of them
           if (tMatch1[1] || tMatch1[2] || tMatch1[3] || tMatch1[4]) {
             const timeH = Math.ceil((d * 24 + h + m / 60 + s / 3600) * 10) / 10;
@@ -282,16 +291,16 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
         const sMatch = text.match(/;\s*(BambuStudio|OrcaSlicer|PrusaSlicer|Cura)/i);
         if (sMatch) setFormData(f => ({ ...f, slicerEngine: sMatch[1] }));
       }
-    } catch(e) { console.error('Lỗi khi đọc file thông số:', e); }
+    } catch (e) { console.error('Lỗi khi đọc file thông số:', e); }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const valid = checkFileAllowed(file);
     if (!valid.ok) { setError(valid.err); return; }
-    
+
     setUploading(true); setError('');
     try {
       if (isSelf && isLabMaterial) autoFillPrintData(file);
@@ -546,7 +555,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
-                {/* Material type */}
+                {/* Material type — driven by inventory */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{t('materialType')}</label>
@@ -559,25 +568,47 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
                       </span>
                     )}
                   </div>
+                  {isLabMaterial && allMaterials.length === 0 && (
+                    <p className="text-xs text-red-500">Kho hiện không có vật liệu nào.</p>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
-                    {Object.values(MaterialType).map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => setFormData(f => ({ ...f, materialType: type }))}
-                        className={cn(
-                          "py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all",
-                          formData.materialType === type
-                            ? "border-blue-600 bg-blue-50 text-blue-600 dark:bg-blue-900/30"
-                            : "border-slate-100 dark:border-slate-800 text-slate-500 hover:border-blue-200"
-                        )}
-                      >
-                        {type}
-                      </button>
-                    ))}
+                    {(isLabMaterial ? Object.values(MaterialType) : Object.values(MaterialType)).map((type) => {
+                      const inStock = isLabMaterial ? availableMaterials.includes(type) : true;
+                      const hasAny = isLabMaterial ? allMaterials.includes(type) : true;
+                      return (
+                        <button
+                          key={type}
+                          onClick={() => {
+                            setFormData(f => {
+                              const newColors = isLabMaterial
+                                ? f.colors.filter(c => inStockItems.some(i => i.material === type && i.color === c))
+                                : f.colors;
+                              return { ...f, materialType: type, colors: newColors.length > 0 ? newColors : [] };
+                            });
+                          }}
+                          disabled={isLabMaterial && !hasAny}
+                          className={cn(
+                            "py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all relative",
+                            formData.materialType === type
+                              ? "border-blue-600 bg-blue-50 text-blue-600 dark:bg-blue-900/30"
+                              : isLabMaterial && !hasAny
+                                ? "border-slate-100 dark:border-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-50"
+                                : isLabMaterial && !inStock
+                                  ? "border-slate-100 dark:border-slate-800 text-slate-400 border-dashed"
+                                  : "border-slate-100 dark:border-slate-800 text-slate-500 hover:border-blue-200"
+                          )}
+                        >
+                          {type}
+                          {isLabMaterial && !hasAny && (
+                            <span className="block text-[9px] font-normal text-red-400 mt-0.5">Hết hàng</span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Color — only for Tự in + Lab */}
+                {/* Color — inventory-driven, Shopee-style cross-filter */}
                 {isSelf && isLabMaterial && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -590,13 +621,15 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
                         </span>
                       )}
                     </div>
+                    {availableColors.length === 0 && (
+                      <p className="text-xs text-slate-400">Không có màu nào cho loại nhựa này.</p>
+                    )}
                     {selectedPrinter?.hasAMS && formData.colors.length > 1 && (
                       <div className="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
                         <div className="flex gap-1">
-                          {formData.colors.map((c, i) => {
-                            const colorOpt = COLOR_OPTIONS.find(x => x.label === c);
-                            return <div key={i} className="w-5 h-5 rounded-full border-2 border-white shadow" style={{ backgroundColor: colorOpt?.hex || '#ccc' }} title={c} />;
-                          })}
+                          {formData.colors.map((c, i) => (
+                            <div key={i} className="w-5 h-5 rounded-full border-2 border-white shadow" style={{ backgroundColor: COLOR_HEX[c] || '#ccc' }} title={c} />
+                          ))}
                         </div>
                         <p className="text-[11px] text-purple-700 dark:text-purple-300 font-bold">
                           In {formData.colors.length} màu: {formData.colors.join(', ')}
@@ -604,34 +637,29 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
                       </div>
                     )}
                     <div className="flex flex-wrap gap-2">
-                      {COLOR_OPTIONS.map(({ label, hex }) => (
-                        <button
-                          key={label}
-                          onClick={() => toggleColor(label)}
-                          className={cn(
-                            "flex items-center gap-1.5 px-3 py-2 rounded-full border text-xs font-bold transition-all",
-                            formData.colors.includes(label)
-                              ? "bg-blue-600 text-white border-blue-600"
-                              : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-400"
-                          )}
-                        >
-                          <div className="w-3 h-3 rounded-full border border-white/50" style={{ backgroundColor: hex }} />
-                          {label}
-                        </button>
-                      ))}
+                      {allColors.map((colorName) => {
+                        const isAvail = availableColors.includes(colorName);
+                        const isSelected = formData.colors.includes(colorName);
+                        return (
+                          <button
+                            key={colorName}
+                            onClick={() => isAvail && toggleColor(colorName)}
+                            disabled={!isAvail}
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-2 rounded-full border text-xs font-bold transition-all",
+                              isSelected
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : isAvail
+                                  ? "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-400"
+                                  : "bg-slate-50 dark:bg-slate-900 text-slate-300 dark:text-slate-600 border-slate-100 dark:border-slate-800 cursor-not-allowed opacity-50"
+                            )}
+                          >
+                            <div className="w-3 h-3 rounded-full border border-white/50" style={{ backgroundColor: COLOR_HEX[colorName] || '#ccc' }} />
+                            {colorName}
+                          </button>
+                        );
+                      })}
                     </div>
-                    {formData.colors.includes('Khác') && (
-                      <input
-                        type="text"
-                        placeholder="Nhập tên màu cụ thể (VD: Xanh ngọc, Nâu đất...)"
-                        value={formData.customColor}
-                        onChange={e => setFormData(f => ({ ...f, customColor: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                      />
-                    )}
-                    {!selectedPrinter?.hasAMS && (
-                      <p className="text-[11px] text-slate-400">{t('colorSingleNote')}</p>
-                    )}
                   </div>
                 )}
 
@@ -800,11 +828,11 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
                           </div>
                         </div>
                         <button
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            setUploadedFile(null); 
-                            setFormData(f => ({ ...f, fileName: '', nozzleSize: '', slicerEngine: '' })); 
-                            if (fileInputRef.current) fileInputRef.current.value = ''; 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUploadedFile(null);
+                            setFormData(f => ({ ...f, fileName: '', nozzleSize: '', slicerEngine: '' }));
+                            if (fileInputRef.current) fileInputRef.current.value = '';
                           }}
                           className="text-xs text-slate-400 hover:text-red-600 flex items-center gap-1 p-1"
                         >
@@ -859,7 +887,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
                       </select>
                     </div>
                     <p className="text-[11px] text-slate-400 flex items-center gap-1">
-                      <Info size={11} /> 
+                      <Info size={11} />
                       {isSelf && isLabMaterial ? 'Tự động tính toán từ file đã slice' : t('estimatedTimeHint')}
                     </p>
                   </div>
@@ -878,52 +906,52 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
                       disabled={isSelf && isLabMaterial && !!uploadedFile}
                     />
                     <p className="text-[11px] text-slate-400 flex items-center gap-1">
-                      <Info size={11} /> 
+                      <Info size={11} />
                       {isSelf && isLabMaterial ? 'Tự động tính toán từ file đã slice' : t('estimatedGramsHint')}
                     </p>
                   </div>
 
-                {/* Cost preview */}
-                {formData.estimatedGrams > 0 && (isSelf ? isLabMaterial : true) && (
-                  <div className={`p-4 rounded-xl border space-y-1 ${isSelf ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800'}`}>
-                    <p className="text-xs text-slate-500 mb-2">{t('costEstimate')}</p>
-                    {isLabMaterial && (
-                      <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
-                        <span>Vật liệu: {formData.estimatedGrams}g × {getPricePerGram().toLocaleString()}đ/g</span>
-                        <span className="font-bold">{matCost.toLocaleString()}đ</span>
+                  {/* Cost preview */}
+                  {formData.estimatedGrams > 0 && (isSelf ? isLabMaterial : true) && (
+                    <div className={`p-4 rounded-xl border space-y-1 ${isSelf ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800'}`}>
+                      <p className="text-xs text-slate-500 mb-2">{t('costEstimate')}</p>
+                      {isLabMaterial && (
+                        <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
+                          <span>Vật liệu: {formData.estimatedGrams}g × {getPricePerGram().toLocaleString()}đ/g</span>
+                          <span className="font-bold">{matCost.toLocaleString()}đ</span>
+                        </div>
+                      )}
+                      {!isSelf && getServiceFeePerGram() > 0 && (
+                        <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
+                          <span>Phí in hộ: {formData.estimatedGrams}g × {getServiceFeePerGram().toLocaleString()}đ/g</span>
+                          <span className="font-bold">{svcCost.toLocaleString()}đ</span>
+                        </div>
+                      )}
+                      <div className={`flex justify-between pt-1 border-t ${isSelf ? 'border-blue-100 dark:border-blue-800' : 'border-amber-100 dark:border-amber-800'}`}>
+                        <span className={`text-sm font-bold ${isSelf ? 'text-blue-600' : 'text-amber-700 dark:text-amber-300'}`}>Tổng ước tính</span>
+                        <span className={`text-xl font-black ${isSelf ? 'text-blue-600' : 'text-amber-700 dark:text-amber-300'}`}>{totalCost.toLocaleString()}đ</span>
                       </div>
-                    )}
-                    {!isSelf && getServiceFeePerGram() > 0 && (
-                      <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
-                        <span>Phí in hộ: {formData.estimatedGrams}g × {getServiceFeePerGram().toLocaleString()}đ/g</span>
-                        <span className="font-bold">{svcCost.toLocaleString()}đ</span>
-                      </div>
-                    )}
-                    <div className={`flex justify-between pt-1 border-t ${isSelf ? 'border-blue-100 dark:border-blue-800' : 'border-amber-100 dark:border-amber-800'}`}>
-                      <span className={`text-sm font-bold ${isSelf ? 'text-blue-600' : 'text-amber-700 dark:text-amber-300'}`}>Tổng ước tính</span>
-                      <span className={`text-xl font-black ${isSelf ? 'text-blue-600' : 'text-amber-700 dark:text-amber-300'}`}>{totalCost.toLocaleString()}đ</span>
+                      <p className="text-[10px] text-slate-400">
+                        {!isSelf ? 'Ước tính — Mod xác nhận sau khi slice' : t('payLater')}
+                      </p>
                     </div>
-                    <p className="text-[10px] text-slate-400">
-                      {!isSelf ? 'Ước tính — Mod xác nhận sau khi slice' : t('payLater')}
-                    </p>
-                  </div>
-                )}
-                {/* Tự in + Own: free */}
-                {isSelf && !isLabMaterial && (
-                  <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
-                    <p className="text-xs text-slate-500 mb-1">{t('costEstimate')}</p>
-                    <p className="text-xl font-black text-emerald-600">0đ — Miễn phí</p>
-                    <p className="text-[11px] text-slate-400 mt-1">Tự mang nhựa không tính phí vật liệu</p>
-                  </div>
-                )}
-                {/* In hộ + Own + 0 service fee note */}
-                {!isSelf && !isLabMaterial && getServiceFeePerGram() === 0 && (
-                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800">
-                    <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">{t('waitingSchedule')}</p>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                  {/* Tự in + Own: free */}
+                  {isSelf && !isLabMaterial && (
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                      <p className="text-xs text-slate-500 mb-1">{t('costEstimate')}</p>
+                      <p className="text-xl font-black text-emerald-600">0đ — Miễn phí</p>
+                      <p className="text-[11px] text-slate-400 mt-1">Tự mang nhựa không tính phí vật liệu</p>
+                    </div>
+                  )}
+                  {/* In hộ + Own + 0 service fee note */}
+                  {!isSelf && !isLabMaterial && getServiceFeePerGram() === 0 && (
+                    <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800">
+                      <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">{t('waitingSchedule')}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -1131,13 +1159,12 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
                     </>
                   )}
 
-                  {isSelf && isLabMaterial && (
+                  {isSelf && isLabMaterial && formData.colors.length > 0 && (
                     <>
                       <div className="text-slate-500">{t('color')}:</div>
                       <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
                         {formData.colors.map((c, i) => {
-                          const colorOpt = COLOR_OPTIONS.find(x => x.label === c);
-                          return <span key={i} className="w-4 h-4 rounded-full border border-slate-200 inline-block" style={{ backgroundColor: colorOpt?.hex || '#ccc' }} title={c} />;
+                          return <span key={i} className="w-4 h-4 rounded-full border border-slate-200 inline-block" style={{ backgroundColor: COLOR_HEX[c] || '#ccc' }} title={c} />;
                         })}
                         {formData.colors.join(', ')}
                       </div>

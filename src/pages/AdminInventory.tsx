@@ -18,6 +18,7 @@ import { api } from '../lib/api';
 
 const AREAS = ['Mỹ Đình', 'Hòa Lạc'];
 const MATERIALS = ['PLA', 'PETG', 'TPU', 'ABS'];
+const COLOR_PRESETS = ['Trắng', 'Đen', 'Xám', 'Xanh dương', 'Xanh lá', 'Đỏ', 'Vàng', 'Cam', 'Tím', 'Hồng'];
 
 const emptyNew = () => ({
   material: 'PLA',
@@ -176,13 +177,27 @@ export const AdminInventory: React.FC = () => {
             </div>
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Màu sắc</label>
-              <input
-                type="text"
-                placeholder="Trắng, Đen..."
-                value={newItem.color}
-                onChange={e => setNewItem({ ...newItem, color: e.target.value })}
+              <select
+                value={COLOR_PRESETS.includes(newItem.color) ? newItem.color : '__custom'}
+                onChange={e => {
+                  if (e.target.value === '__custom') setNewItem({ ...newItem, color: '' });
+                  else setNewItem({ ...newItem, color: e.target.value });
+                }}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
-              />
+              >
+                <option value="" disabled>Chọn màu...</option>
+                {COLOR_PRESETS.map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="__custom">Tùy chỉnh...</option>
+              </select>
+              {!COLOR_PRESETS.includes(newItem.color) && (
+                <input
+                  type="text"
+                  placeholder="Nhập tên màu..."
+                  value={newItem.color}
+                  onChange={e => setNewItem({ ...newItem, color: e.target.value })}
+                  className="w-full mt-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
+                />
+              )}
             </div>
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Khối lượng (g)</label>

@@ -6,13 +6,12 @@ import multer from 'multer';
 import path from 'path';
 import { mkdirSync, existsSync, copyFileSync, readdirSync, statSync, readFileSync } from 'fs';
 import { randomUUID } from 'crypto';
-import nodemailer from 'nodemailer';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { logger, httpLogger } from './logger.js';
 import {
   validate,
-  SendOtpSchema, VerifyOtpSchema, RegisterSchema, LoginSchema,
+  RegisterSchema, LoginSchema,
   CreateJobSchema, PatchJobSchema, PatchUserSchema,
   UpdatePricingSchema, UpdateServiceFeesSchema, PostMessageSchema,
 } from './validation.js';
@@ -158,26 +157,26 @@ db.exec(`
 `);
 
 // Migrations
-try { db.exec(`ALTER TABLE printers ADD COLUMN location TEXT NOT NULL DEFAULT ''`); } catch {}
-try { db.exec(`ALTER TABLE printers ADD COLUMN image_url TEXT NOT NULL DEFAULT ''`); } catch {}
-try { db.exec(`ALTER TABLE printers ADD COLUMN has_ams INTEGER NOT NULL DEFAULT 0`); } catch {}
-try { db.exec(`ALTER TABLE filament_inventory ADD COLUMN brand TEXT NOT NULL DEFAULT ''`); } catch {}
-try { db.exec(`ALTER TABLE filament_inventory ADD COLUMN area TEXT NOT NULL DEFAULT 'Mỹ Đình'`); } catch {}
-try { db.exec(`ALTER TABLE print_jobs ADD COLUMN revision_note TEXT`); } catch {}
-try { db.exec(`ALTER TABLE print_jobs ADD COLUMN brand TEXT`); } catch {}
-try { db.exec(`ALTER TABLE users ADD COLUMN ban_reason TEXT`); } catch {}
-try { db.exec(`ALTER TABLE users ADD COLUMN ban_until TEXT`); } catch {}
-try { db.exec(`ALTER TABLE print_jobs ADD COLUMN print_mode TEXT NOT NULL DEFAULT 'self'`); } catch {}
-try { db.exec(`ALTER TABLE service_fees ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`); } catch {}
-try { db.prepare(`UPDATE service_fees SET amount=100, description='Phí dịch vụ in hộ (đ/gram)' WHERE name='service_fee' AND amount=20000`).run(); } catch {}
+try { db.exec(`ALTER TABLE printers ADD COLUMN location TEXT NOT NULL DEFAULT ''`); } catch { }
+try { db.exec(`ALTER TABLE printers ADD COLUMN image_url TEXT NOT NULL DEFAULT ''`); } catch { }
+try { db.exec(`ALTER TABLE printers ADD COLUMN has_ams INTEGER NOT NULL DEFAULT 0`); } catch { }
+try { db.exec(`ALTER TABLE filament_inventory ADD COLUMN brand TEXT NOT NULL DEFAULT ''`); } catch { }
+try { db.exec(`ALTER TABLE filament_inventory ADD COLUMN area TEXT NOT NULL DEFAULT 'Mỹ Đình'`); } catch { }
+try { db.exec(`ALTER TABLE print_jobs ADD COLUMN revision_note TEXT`); } catch { }
+try { db.exec(`ALTER TABLE print_jobs ADD COLUMN brand TEXT`); } catch { }
+try { db.exec(`ALTER TABLE users ADD COLUMN ban_reason TEXT`); } catch { }
+try { db.exec(`ALTER TABLE users ADD COLUMN ban_until TEXT`); } catch { }
+try { db.exec(`ALTER TABLE print_jobs ADD COLUMN print_mode TEXT NOT NULL DEFAULT 'self'`); } catch { }
+try { db.exec(`ALTER TABLE service_fees ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`); } catch { }
+try { db.prepare(`UPDATE service_fees SET amount=100, description='Phí dịch vụ in hộ (đ/gram)' WHERE name='service_fee' AND amount=20000`).run(); } catch { }
 db.prepare(`INSERT OR IGNORE INTO lab_settings (key,value) VALUES ('terms_content',?)`).run('');
 db.prepare(`INSERT OR IGNORE INTO lab_settings (key,value) VALUES ('require_approval','0')`).run();
 
 // Performance indexes
-try { db.exec(`CREATE INDEX IF NOT EXISTS idx_email_verif_email ON email_verifications(email)`); } catch {}
-try { db.exec(`CREATE INDEX IF NOT EXISTS idx_print_jobs_user_id ON print_jobs(user_id)`); } catch {}
-try { db.exec(`CREATE INDEX IF NOT EXISTS idx_print_jobs_status ON print_jobs(status)`); } catch {}
-try { db.exec(`CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at DESC)`); } catch {}
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_email_verif_email ON email_verifications(email)`); } catch { }
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_print_jobs_user_id ON print_jobs(user_id)`); } catch { }
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_print_jobs_status ON print_jobs(status)`); } catch { }
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at DESC)`); } catch { }
 
 // ─── Seed ──────────────────────────────────────────────────────────────────
 function seedIfEmpty() {
@@ -193,9 +192,9 @@ function seedIfEmpty() {
   const printerCount = (db.prepare('SELECT COUNT(*) as c FROM printers').get() as any).c;
   if (printerCount === 0) {
     const printers = [
-      { id: 'p1', name: 'Bambu Lab A1', build_volume: '256 x 256 x 256 mm', mats: JSON.stringify(['PLA','PETG','TPU']), loc: 'Mỹ Đình', img: '/images/bambuA1.jpg', ams: 1 },
-      { id: 'p2', name: 'Bambu Lab X1 Carbon', build_volume: '256 x 256 x 256 mm', mats: JSON.stringify(['PLA','PETG','TPU','ABS']), loc: 'Hòa Lạc', img: '/images/bambuX1Carbon.png', ams: 0 },
-      { id: 'p3', name: 'Creality Ender 3 V3', build_volume: '220 x 220 x 270 mm', mats: JSON.stringify(['PLA','PETG','TPU']), loc: 'Hòa Lạc', img: '/images/Ender-3S1.jpg', ams: 0 },
+      { id: 'p1', name: 'Bambu Lab A1', build_volume: '256 x 256 x 256 mm', mats: JSON.stringify(['PLA', 'PETG', 'TPU']), loc: 'Mỹ Đình', img: '/images/bambuA1.jpg', ams: 1 },
+      { id: 'p2', name: 'Bambu Lab X1 Carbon', build_volume: '256 x 256 x 256 mm', mats: JSON.stringify(['PLA', 'PETG', 'TPU', 'ABS']), loc: 'Hòa Lạc', img: '/images/bambuX1Carbon.png', ams: 0 },
+      { id: 'p3', name: 'Creality Ender 3 V3', build_volume: '220 x 220 x 270 mm', mats: JSON.stringify(['PLA', 'PETG', 'TPU']), loc: 'Hòa Lạc', img: '/images/Ender-3S1.jpg', ams: 0 },
     ];
     const stmt = db.prepare(`INSERT INTO printers (id,name,build_volume,supported_materials,status,queue_length,location,image_url,has_ams) VALUES (?,?,?,?,'Available',0,?,?,?)`);
     printers.forEach(p => stmt.run(p.id, p.name, p.build_volume, p.mats, p.loc, p.img, p.ams));
@@ -214,67 +213,38 @@ function seedIfEmpty() {
   }
   const priceCount = (db.prepare('SELECT COUNT(*) as c FROM pricing_rules').get() as any).c;
   if (priceCount === 0) {
-    [['PLA',1000],['PETG',1200],['TPU',1500],['ABS',1300]].forEach(([m,p]) =>
+    [['PLA', 1000], ['PETG', 1200], ['TPU', 1500], ['ABS', 1300]].forEach(([m, p]) =>
       db.prepare(`INSERT INTO pricing_rules (id,material,price_per_gram) VALUES (?,?,?)`).run(randomUUID(), m, p)
     );
   }
   const feeCount = (db.prepare('SELECT COUNT(*) as c FROM service_fees').get() as any).c;
   if (feeCount === 0) {
     [
-      ['setup_fee','Phí khởi tạo Job',0,'Áp dụng cho mỗi yêu cầu in'],
-      ['rush_fee','Phí in nhanh',50000,'Ưu tiên hàng đợi'],
-      ['service_fee','Phí in hộ',100,'Phí dịch vụ in hộ (đ/gram)'],
-    ].forEach(([name,label,amount,desc]) =>
+      ['setup_fee', 'Phí khởi tạo Job', 0, 'Áp dụng cho mỗi yêu cầu in'],
+      ['rush_fee', 'Phí in nhanh', 50000, 'Ưu tiên hàng đợi'],
+      ['service_fee', 'Phí in hộ', 100, 'Phí dịch vụ in hộ (đ/gram)'],
+    ].forEach(([name, label, amount, desc]) =>
       db.prepare(`INSERT INTO service_fees (id,name,label,amount,description) VALUES (?,?,?,?,?)`).run(randomUUID(), name, label, amount, desc)
     );
   }
   const settingCount = (db.prepare('SELECT COUNT(*) as c FROM lab_settings').get() as any).c;
   if (settingCount === 0) {
     [
-      ['contact_email',''],['contact_facebook',''],['contact_zalo',''],
-      ['guide_url',''],['lab_name','BCSE 3D Lab'],
-      ['smtp_host', process.env.SMTP_HOST||''],
-      ['smtp_port', process.env.SMTP_PORT||'587'],
-      ['smtp_user', process.env.SMTP_USER||''],
-      ['smtp_pass', process.env.SMTP_PASS||''],
-      ['smtp_from', process.env.SMTP_FROM||''],
-    ].forEach(([k,v]) => db.prepare('INSERT INTO lab_settings (key,value) VALUES (?,?)').run(k, v));
+      ['contact_email', ''], ['contact_facebook', ''], ['contact_zalo', ''],
+      ['guide_url', ''], ['lab_name', 'BCSE 3D Lab'],
+      ['smtp_host', process.env.SMTP_HOST || ''],
+      ['smtp_port', process.env.SMTP_PORT || '587'],
+      ['smtp_user', process.env.SMTP_USER || ''],
+      ['smtp_pass', process.env.SMTP_PASS || ''],
+      ['smtp_from', process.env.SMTP_FROM || ''],
+    ].forEach(([k, v]) => db.prepare('INSERT INTO lab_settings (key,value) VALUES (?,?)').run(k, v));
   }
 }
 seedIfEmpty();
 
-// ─── Email helpers ─────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────
 function getSetting(key: string): string {
   return ((db.prepare('SELECT value FROM lab_settings WHERE key=?').get(key) as any)?.value) || '';
-}
-
-function createTransporter() {
-  const host = getSetting('smtp_host') || process.env.SMTP_HOST;
-  const portNum = parseInt(getSetting('smtp_port') || process.env.SMTP_PORT || '587');
-  const user = getSetting('smtp_user') || process.env.SMTP_USER;
-  const pass = getSetting('smtp_pass') || process.env.SMTP_PASS;
-  if (!host || !user || !pass) return null;
-  return nodemailer.createTransport({ host, port: portNum, secure: portNum === 465, auth: { user, pass } });
-}
-
-async function sendOTPEmail(email: string, otp: string) {
-  const transporter = createTransporter();
-  if (!transporter) throw new Error('SMTP chưa được cấu hình. Admin vui lòng cài đặt SMTP trong phần Settings.');
-  const from = getSetting('smtp_from') || getSetting('smtp_user') || process.env.SMTP_USER;
-  const lab = getSetting('lab_name') || 'BCSE 3D Lab';
-  await transporter.sendMail({
-    from: `"${lab}" <${from}>`,
-    to: email,
-    subject: `[${lab}] Mã xác thực OTP`,
-    html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;border:1px solid #e5e7eb;border-radius:12px">
-      <h2 style="color:#1e40af">${lab}</h2>
-      <p style="color:#6b7280">Mã OTP xác thực email của bạn:</p>
-      <div style="background:#f0f9ff;border:2px solid #bfdbfe;border-radius:8px;padding:20px;text-align:center;margin:20px 0">
-        <span style="font-size:36px;font-weight:900;letter-spacing:12px;color:#1e40af">${otp}</span>
-      </div>
-      <p style="color:#9ca3af;font-size:13px">Mã có hiệu lực trong <strong>10 phút</strong>.</p>
-    </div>`,
-  });
 }
 
 // ─── Express ───────────────────────────────────────────────────────────────
@@ -340,14 +310,6 @@ const authLimiter = rateLimit({
   message: { error: 'Quá nhiều yêu cầu xác thực, vui lòng thử lại sau 15 phút.' },
 });
 
-// OTP: strictest — 5 req / 60 min per IP
-const otpLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Quá nhiều yêu cầu gửi OTP. Vui lòng thử lại sau 1 giờ.' },
-});
 
 app.use('/api', globalLimiter);
 
@@ -356,9 +318,11 @@ const storage = multer.diskStorage({
   destination: UPLOADS_DIR,
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
 });
-const upload = multer({ storage, limits: { fileSize: 50*1024*1024 }, fileFilter: (req, file, cb) => {
-  cb(null, ['.stl','.3mf','.gcode'].includes(path.extname(file.originalname).toLowerCase()));
-}});
+const upload = multer({
+  storage, limits: { fileSize: 50 * 1024 * 1024 }, fileFilter: (req, file, cb) => {
+    cb(null, ['.stl', '.3mf', '.gcode'].includes(path.extname(file.originalname).toLowerCase()));
+  }
+});
 
 // ─── Auth middleware ───────────────────────────────────────────────────────
 interface AuthReq extends Request { user?: any; }
@@ -377,21 +341,21 @@ function requireRole(...roles: string[]) {
   };
 }
 
-function logAction(userId: string|null, userName: string|null, action: string, details?: string) {
+function logAction(userId: string | null, userName: string | null, action: string, details?: string) {
   db.prepare(`INSERT INTO activity_logs (id,user_id,user_name,action,details,created_at) VALUES (?,?,?,?,?,?)`)
-    .run(randomUUID(), userId, userName, action, details||null, new Date().toISOString());
+    .run(randomUUID(), userId, userName, action, details || null, new Date().toISOString());
 }
 
 function jobCode() {
   const n = (db.prepare('SELECT COUNT(*) as c FROM print_jobs').get() as any).c + 1;
-  return `JOB-${String(n).padStart(3,'0')}`;
+  return `JOB-${String(n).padStart(3, '0')}`;
 }
 
 function mapJob(j: any) {
   return { id: j.id, userId: j.user_id, userName: j.user_name, jobName: j.job_name, description: j.description, fileName: j.file_name, estimatedTime: j.estimated_time, estimatedGrams: j.estimated_grams, actualGrams: j.actual_grams, materialType: j.material_type, color: j.color, brand: j.brand, materialSource: j.material_source, printMode: j.print_mode || 'self', printerId: j.printer_id, printerName: j.printer_name, slotTime: j.slot_time, status: j.status, cost: j.cost, rejectionReason: j.rejection_reason, revisionNote: j.revision_note, notes: j.notes, createdAt: j.created_at, updatedAt: j.updated_at };
 }
 
-function toSnake(s: string) { return s.replace(/([A-Z])/g,'_$1').toLowerCase(); }
+function toSnake(s: string) { return s.replace(/([A-Z])/g, '_$1').toLowerCase(); }
 
 // ─── Health check ──────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -408,47 +372,6 @@ app.get('/api/health', (req, res) => {
   }
 });
 
-// ─── OTP ───────────────────────────────────────────────────────────────────
-app.post('/api/auth/send-otp', otpLimiter, validate(SendOtpSchema), async (req: Request, res: Response) => {
-  const { email } = req.body;
-  if (!isVjuEmail(email)) { res.status(400).json({ error: 'Chỉ chấp nhận email VJU (@st.vju.ac.vn hoặc @vju.ac.vn)' }); return; }
-  if (db.prepare('SELECT id FROM users WHERE email=?').get(email)) { res.status(409).json({ error: 'Email đã được đăng ký' }); return; }
-
-  // Per-email cooldown: 60 seconds between sends
-  const recent = db.prepare('SELECT created_at FROM email_verifications WHERE email=? ORDER BY created_at DESC LIMIT 1').get(email) as any;
-  if (recent) {
-    const elapsed = Date.now() - new Date(recent.created_at).getTime();
-    const cooldownMs = 60 * 1000;
-    if (elapsed < cooldownMs) {
-      const waitSec = Math.ceil((cooldownMs - elapsed) / 1000);
-      res.status(429).json({ error: `Vui lòng chờ ${waitSec} giây trước khi gửi lại OTP.` });
-      return;
-    }
-  }
-
-  const otp = String(Math.floor(100000 + Math.random() * 900000));
-  const expiresAt = new Date(Date.now() + 10*60*1000).toISOString();
-  db.prepare('DELETE FROM email_verifications WHERE email=?').run(email);
-  db.prepare('INSERT INTO email_verifications (id,email,otp,expires_at,verified,created_at) VALUES (?,?,?,?,0,?)')
-    .run(randomUUID(), email, otp, expiresAt, new Date().toISOString());
-  try {
-    await sendOTPEmail(email, otp);
-    logger.info('OTP sent', { email });
-    res.json({ message: 'OTP đã được gửi đến email của bạn.' });
-  } catch (err: any) {
-    logger.error('OTP send failed', { email, err: err.message });
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/auth/verify-otp', validate(VerifyOtpSchema), (req: Request, res: Response) => {
-  const { email, otp } = req.body;
-  const record = db.prepare('SELECT * FROM email_verifications WHERE email=? AND otp=? AND verified=0').get(email, otp) as any;
-  if (!record) { res.status(400).json({ error: 'Mã OTP không đúng' }); return; }
-  if (new Date(record.expires_at) < new Date()) { res.status(400).json({ error: 'Mã OTP đã hết hạn. Vui lòng gửi lại.' }); return; }
-  db.prepare('UPDATE email_verifications SET verified=1 WHERE id=?').run(record.id);
-  res.json({ message: 'Xác thực thành công' });
-});
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
 app.post('/api/auth/register', validate(RegisterSchema), (req: Request, res: Response) => {
@@ -460,7 +383,7 @@ app.post('/api/auth/register', validate(RegisterSchema), (req: Request, res: Res
   const id = randomUUID();
   const hash = bcrypt.hashSync(password, 10);
   db.prepare(`INSERT INTO users (id,email,password_hash,full_name,student_id,phone,supervisor,role,status,created_at) VALUES (?,?,?,?,?,?,?,'Student','active',?)`)
-    .run(id, email, hash, fullName, studentId||null, phone||null, supervisor||null, new Date().toISOString());
+    .run(id, email, hash, fullName, studentId || null, phone || null, supervisor || null, new Date().toISOString());
   logAction(id, fullName, 'REGISTER', `Email: ${email}`);
   logger.info('User registered', { email });
   res.json({ message: 'Đăng ký thành công. Bạn có thể đăng nhập ngay bây giờ.' });
@@ -524,17 +447,17 @@ app.post('/api/jobs', requireAuth, validate(CreateJobSchema), (req: AuthReq, res
   const matCostPerGram = pricing?.price_per_gram || 0;
   let cost = 0;
   if (resolvedPrintMode === 'self') {
-    cost = materialSource === 'Lab' ? (estimatedGrams||0) * matCostPerGram : 0;
+    cost = materialSource === 'Lab' ? (estimatedGrams || 0) * matCostPerGram : 0;
   } else {
-    const matCost = materialSource === 'Lab' ? (estimatedGrams||0) * matCostPerGram : 0;
-    cost = matCost + (estimatedGrams||0) * serviceFeePerGram;
+    const matCost = materialSource === 'Lab' ? (estimatedGrams || 0) * matCostPerGram : 0;
+    cost = matCost + (estimatedGrams || 0) * serviceFeePerGram;
   }
   const printer = printerId ? db.prepare('SELECT name FROM printers WHERE id=?').get(printerId) as any : null;
   const initialStatus = resolvedPrintMode === 'lab_assisted' ? 'Pending review' : 'Submitted';
   const id = jobCode();
   const now = new Date().toISOString();
   db.prepare(`INSERT INTO print_jobs (id,user_id,user_name,job_name,description,file_name,estimated_time,estimated_grams,material_type,color,brand,material_source,print_mode,printer_id,printer_name,slot_time,status,cost,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .run(id, req.user.id, req.user.fullName, jobName, description||null, fileName||'', estimatedTime||null, estimatedGrams||0, resolvedMaterialType, resolvedColor, brand||null, materialSource, resolvedPrintMode, printerId||null, printer?.name||null, slotTime||null, initialStatus, cost, now, now);
+    .run(id, req.user.id, req.user.fullName, jobName, description || null, fileName || '', estimatedTime || null, estimatedGrams || 0, resolvedMaterialType, resolvedColor, brand || null, materialSource, resolvedPrintMode, printerId || null, printer?.name || null, slotTime || null, initialStatus, cost, now, now);
   logAction(req.user.id, req.user.fullName, 'CREATE_JOB', `${id} - ${jobName} [${resolvedPrintMode}/${materialSource}]`);
   res.status(201).json(mapJob(db.prepare('SELECT * FROM print_jobs WHERE id=?').get(id) as any));
 });
@@ -548,12 +471,12 @@ app.patch('/api/jobs/:id', requireAuth, validate(PatchJobSchema), (req: AuthReq,
     if (!['Cancelled', 'Submitted'].includes(status)) { res.status(403).json({ error: 'Sinh viên chỉ có thể huỷ hoặc gửi lại job' }); return; }
   }
   const printer = printerId ? db.prepare('SELECT name FROM printers WHERE id=?').get(printerId) as any : null;
-  const updates: Record<string,any> = { updated_at: new Date().toISOString() };
+  const updates: Record<string, any> = { updated_at: new Date().toISOString() };
   if (status) updates.status = status;
   if (rejectionReason !== undefined) updates.rejection_reason = rejectionReason;
   if (notes !== undefined) updates.notes = notes;
   if (revisionNote !== undefined) updates.revision_note = revisionNote;
-  if (printerId !== undefined) { updates.printer_id = printerId; updates.printer_name = printer?.name||null; }
+  if (printerId !== undefined) { updates.printer_id = printerId; updates.printer_name = printer?.name || null; }
   if (slotTime !== undefined) updates.slot_time = slotTime;
   if (actualGrams !== undefined) updates.actual_grams = actualGrams;
   if (estimatedTime !== undefined) updates.estimated_time = estimatedTime;
@@ -576,7 +499,7 @@ app.patch('/api/jobs/:id', requireAuth, validate(PatchJobSchema), (req: AuthReq,
   if (status === 'Printing' && job.printer_id) db.prepare('UPDATE printers SET status=?,queue_length=MAX(0,queue_length-1) WHERE id=?').run('Busy', job.printer_id);
   if (status === 'Done' && job.printer_id) {
     const rem = (db.prepare("SELECT COUNT(*) as c FROM print_jobs WHERE printer_id=? AND status='Printing'").get(job.printer_id) as any).c;
-    db.prepare('UPDATE printers SET status=?,queue_length=? WHERE id=?').run(rem>0?'Busy':'Available', rem, job.printer_id);
+    db.prepare('UPDATE printers SET status=?,queue_length=? WHERE id=?').run(rem > 0 ? 'Busy' : 'Available', rem, job.printer_id);
   }
   logAction(req.user.id, req.user.fullName, 'UPDATE_JOB_STATUS', `${req.params.id} → ${status || 'update'}`);
   res.json(mapJob(db.prepare('SELECT * FROM print_jobs WHERE id=?').get(req.params.id) as any));
@@ -588,7 +511,7 @@ app.post('/api/jobs/upload', requireAuth, upload.single('file'), (req: AuthReq, 
 });
 
 // ─── Printers ─────────────────────────────────────────────────────────────
-const mapPrinter = (p: any) => ({ id: p.id, name: p.name, buildVolume: p.build_volume, supportedMaterials: JSON.parse(p.supported_materials||'[]'), status: p.status, queueLength: p.queue_length, nextAvailable: p.next_available, location: p.location||'', imageUrl: p.image_url||'', hasAMS: !!p.has_ams });
+const mapPrinter = (p: any) => ({ id: p.id, name: p.name, buildVolume: p.build_volume, supportedMaterials: JSON.parse(p.supported_materials || '[]'), status: p.status, queueLength: p.queue_length, nextAvailable: p.next_available, location: p.location || '', imageUrl: p.image_url || '', hasAMS: !!p.has_ams });
 
 app.get('/api/printers', requireAuth, (req, res) => res.json((db.prepare('SELECT * FROM printers ORDER BY location,name').all() as any[]).map(mapPrinter)));
 
@@ -597,14 +520,14 @@ app.post('/api/printers', requireAuth, requireRole('Admin'), (req: AuthReq, res:
   if (!name || !buildVolume) { res.status(400).json({ error: 'Thiếu thông tin' }); return; }
   const id = 'p' + Date.now();
   db.prepare('INSERT INTO printers (id,name,build_volume,supported_materials,status,queue_length,location,image_url,has_ams) VALUES (?,?,?,?,?,0,?,?,?)')
-    .run(id, name, buildVolume, JSON.stringify(supportedMaterials||[]), status||'Available', location||'', imageUrl||'', hasAMS?1:0);
+    .run(id, name, buildVolume, JSON.stringify(supportedMaterials || []), status || 'Available', location || '', imageUrl || '', hasAMS ? 1 : 0);
   res.json(mapPrinter(db.prepare('SELECT * FROM printers WHERE id=?').get(id) as any));
 });
 
 app.patch('/api/printers/:id', requireAuth, requireRole('Admin'), (req: AuthReq, res: Response) => {
   const { status, queueLength, nextAvailable, name, buildVolume, supportedMaterials, location, imageUrl, hasAMS } = req.body;
   db.prepare(`UPDATE printers SET status=COALESCE(?,status),queue_length=COALESCE(?,queue_length),next_available=COALESCE(?,next_available),name=COALESCE(?,name),build_volume=COALESCE(?,build_volume),supported_materials=COALESCE(?,supported_materials),location=COALESCE(?,location),image_url=COALESCE(?,image_url),has_ams=COALESCE(?,has_ams) WHERE id=?`)
-    .run(status||null,queueLength??null,nextAvailable||null,name||null,buildVolume||null,supportedMaterials?JSON.stringify(supportedMaterials):null,location!==undefined?location:null,imageUrl!==undefined?imageUrl:null,hasAMS!==undefined?(hasAMS?1:0):null,req.params.id);
+    .run(status || null, queueLength ?? null, nextAvailable || null, name || null, buildVolume || null, supportedMaterials ? JSON.stringify(supportedMaterials) : null, location !== undefined ? location : null, imageUrl !== undefined ? imageUrl : null, hasAMS !== undefined ? (hasAMS ? 1 : 0) : null, req.params.id);
   res.json(mapPrinter(db.prepare('SELECT * FROM printers WHERE id=?').get(req.params.id) as any));
 });
 
@@ -612,7 +535,7 @@ app.delete('/api/printers/:id', requireAuth, requireRole('Admin'), (req, res) =>
 
 const printerImageDir = path.join(DATA_DIR, 'printer-images');
 mkdirSync(printerImageDir, { recursive: true });
-const uploadPrinterImage = multer({ storage: multer.diskStorage({ destination: printerImageDir, filename: (_r,f,cb) => cb(null, Date.now()+path.extname(f.originalname)) }), limits: { fileSize: 5*1024*1024 } });
+const uploadPrinterImage = multer({ storage: multer.diskStorage({ destination: printerImageDir, filename: (_r, f, cb) => cb(null, Date.now() + path.extname(f.originalname)) }), limits: { fileSize: 5 * 1024 * 1024 } });
 app.use('/printer-images', express.static(printerImageDir));
 app.post('/api/printers/upload-image', requireAuth, requireRole('Admin'), uploadPrinterImage.single('image'), (req: AuthReq, res: Response) => {
   if (!req.file) { res.status(400).json({ error: 'Không có file ảnh' }); return; }
@@ -622,22 +545,22 @@ app.post('/api/printers/upload-image', requireAuth, requireRole('Admin'), upload
 // ─── Inventory ─────────────────────────────────────────────────────────────
 app.get('/api/inventory', requireAuth, (req, res) => {
   const items = db.prepare('SELECT * FROM filament_inventory ORDER BY area,material,color').all() as any[];
-  res.json(items.map(i => ({ ...i, remainingGrams: i.remaining_grams, brand: i.brand||'', area: i.area||'Mỹ Đình', status: i.remaining_grams===0?'Out of Stock':i.remaining_grams<i.threshold?'Low':'In Stock' })));
+  res.json(items.map(i => ({ ...i, remainingGrams: i.remaining_grams, brand: i.brand || '', area: i.area || 'Mỹ Đình', status: i.remaining_grams === 0 ? 'Out of Stock' : i.remaining_grams < i.threshold ? 'Low' : 'In Stock' })));
 });
 
-app.patch('/api/inventory/:id', requireAuth, requireRole('Admin','Moderator'), (req: AuthReq, res: Response) => {
+app.patch('/api/inventory/:id', requireAuth, requireRole('Admin', 'Moderator'), (req: AuthReq, res: Response) => {
   const { remainingGrams, threshold, color, location, brand, area } = req.body;
   db.prepare('UPDATE filament_inventory SET remaining_grams=COALESCE(?,remaining_grams),threshold=COALESCE(?,threshold),color=COALESCE(?,color),location=COALESCE(?,location),brand=COALESCE(?,brand),area=COALESCE(?,area) WHERE id=?')
-    .run(remainingGrams??null,threshold??null,color||null,location||null,brand??null,area??null,req.params.id);
+    .run(remainingGrams ?? null, threshold ?? null, color || null, location || null, brand ?? null, area ?? null, req.params.id);
   logAction(req.user.id, req.user.fullName, 'UPDATE_INVENTORY', req.params.id);
   res.json({ success: true });
 });
 
 app.post('/api/inventory', requireAuth, requireRole('Admin'), (req: AuthReq, res: Response) => {
   const { material, color, remainingGrams, threshold, location, brand, area } = req.body;
-  const id = `S-${String((db.prepare('SELECT COUNT(*) as c FROM filament_inventory').get() as any).c+1).padStart(3,'0')}`;
+  const id = `S-${String((db.prepare('SELECT COUNT(*) as c FROM filament_inventory').get() as any).c + 1).padStart(3, '0')}`;
   db.prepare('INSERT INTO filament_inventory (id,material,color,remaining_grams,threshold,location,brand,area) VALUES (?,?,?,?,?,?,?,?)')
-    .run(id, material, color, remainingGrams||1000, threshold||200, location||'', brand||'', area||'Mỹ Đình');
+    .run(id, material, color, remainingGrams || 1000, threshold || 200, location || '', brand || '', area || 'Mỹ Đình');
   res.status(201).json({ id });
 });
 
@@ -647,7 +570,7 @@ app.delete('/api/inventory/:id', requireAuth, requireRole('Admin'), (req, res) =
 app.get('/api/pricing', (req, res) => res.json((db.prepare('SELECT * FROM pricing_rules').all() as any[]).map(r => ({ id: r.id, material: r.material, pricePerGram: r.price_per_gram }))));
 
 app.put('/api/pricing', requireAuth, requireRole('Admin'), validate(UpdatePricingSchema), (req: AuthReq, res: Response) => {
-  const { rules } = req.body as { rules: Array<{material:string;pricePerGram:number}> };
+  const { rules } = req.body as { rules: Array<{ material: string; pricePerGram: number }> };
   const stmt = db.prepare('UPDATE pricing_rules SET price_per_gram=? WHERE material=?');
   rules.forEach(r => stmt.run(r.pricePerGram, r.material));
   logAction(req.user.id, req.user.fullName, 'UPDATE_PRICING');
@@ -663,7 +586,7 @@ app.get('/api/users', requireAuth, requireRole('Admin'), (req, res) => {
 app.patch('/api/users/:id', requireAuth, requireRole('Admin'), validate(PatchUserSchema), (req: AuthReq, res: Response) => {
   const { status, role, banReason, banUntil } = req.body;
   db.prepare('UPDATE users SET status=COALESCE(?,status),role=COALESCE(?,role),ban_reason=COALESCE(?,ban_reason),ban_until=COALESCE(?,ban_until) WHERE id=?')
-    .run(status||null, role||null, banReason!==undefined ? banReason : null, banUntil!==undefined ? banUntil : null, req.params.id);
+    .run(status || null, role || null, banReason !== undefined ? banReason : null, banUntil !== undefined ? banUntil : null, req.params.id);
   logAction(req.user.id, req.user.fullName, 'UPDATE_USER', `${req.params.id} status:${status} role:${role} ban:${banReason}`);
   res.json({ success: true });
 });
@@ -679,26 +602,26 @@ app.delete('/api/users/:id', requireAuth, requireRole('Admin'), (req: AuthReq, r
 });
 
 // ─── Logs ─────────────────────────────────────────────────────────────────
-app.get('/api/logs', requireAuth, requireRole('Admin','Moderator'), (req, res) => {
+app.get('/api/logs', requireAuth, requireRole('Admin', 'Moderator'), (req, res) => {
   const limit = Math.min(parseInt(req.query.limit as string) || 100, 500);
   res.json(db.prepare('SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT ?').all(limit));
 });
 
 // ─── Stats ────────────────────────────────────────────────────────────────
-app.get('/api/stats', requireAuth, requireRole('Admin','Moderator'), (req, res) => {
+app.get('/api/stats', requireAuth, requireRole('Admin', 'Moderator'), (req, res) => {
   res.json({
     totalJobs: (db.prepare("SELECT COUNT(*) as c FROM print_jobs").get() as any).c,
     pendingReview: (db.prepare("SELECT COUNT(*) as c FROM print_jobs WHERE status IN ('Submitted','Pending review')").get() as any).c,
     printing: (db.prepare("SELECT COUNT(*) as c FROM print_jobs WHERE status='Printing'").get() as any).c,
     totalUsers: (db.prepare("SELECT COUNT(*) as c FROM users WHERE status='active'").get() as any).c,
     pendingUsers: (db.prepare("SELECT COUNT(*) as c FROM users WHERE status='pending'").get() as any).c,
-    totalRevenue: ((db.prepare("SELECT SUM(cost) as s FROM print_jobs WHERE status='Done'").get() as any).s)||0,
+    totalRevenue: ((db.prepare("SELECT SUM(cost) as s FROM print_jobs WHERE status='Done'").get() as any).s) || 0,
   });
 });
 
 // ─── Messages ─────────────────────────────────────────────────────────────
 app.get('/api/messages', requireAuth, (req: AuthReq, res: Response) => {
-  const jobId = req.query.jobId as string|undefined;
+  const jobId = req.query.jobId as string | undefined;
   const msgs = jobId ? db.prepare('SELECT * FROM messages WHERE job_id=? ORDER BY created_at ASC').all(jobId)
     : db.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 100').all();
   res.json((msgs as any[]).map(m => ({ id: m.id, userId: m.user_id, userName: m.user_name, userRole: m.user_role, jobId: m.job_id, content: m.content, createdAt: m.created_at })));
@@ -708,15 +631,15 @@ app.post('/api/messages', requireAuth, validate(PostMessageSchema), (req: AuthRe
   const { content, jobId } = req.body;
   const id = randomUUID(); const now = new Date().toISOString();
   db.prepare('INSERT INTO messages (id,user_id,user_name,user_role,job_id,content,created_at) VALUES (?,?,?,?,?,?,?)')
-    .run(id, req.user.id, req.user.fullName, req.user.role, jobId||null, content.trim(), now);
-  res.status(201).json({ id, userId: req.user.id, userName: req.user.fullName, userRole: req.user.role, jobId: jobId||null, content: content.trim(), createdAt: now });
+    .run(id, req.user.id, req.user.fullName, req.user.role, jobId || null, content.trim(), now);
+  res.status(201).json({ id, userId: req.user.id, userName: req.user.fullName, userRole: req.user.role, jobId: jobId || null, content: content.trim(), createdAt: now });
 });
 
 // ─── Service Fees ─────────────────────────────────────────────────────────
 app.get('/api/service-fees', requireAuth, (req, res) => res.json((db.prepare('SELECT * FROM service_fees ORDER BY name').all() as any[]).map(f => ({ id: f.id, name: f.name, label: f.label, amount: f.amount, description: f.description, enabled: f.enabled !== 0 }))));
 
 app.put('/api/service-fees', requireAuth, requireRole('Admin'), validate(UpdateServiceFeesSchema), (req: AuthReq, res: Response) => {
-  const { fees } = req.body as { fees: Array<{name:string;amount:number;enabled?:boolean}> };
+  const { fees } = req.body as { fees: Array<{ name: string; amount: number; enabled?: boolean }> };
   const stmt = db.prepare('UPDATE service_fees SET amount=?, enabled=? WHERE name=?');
   fees.forEach(f => stmt.run(f.amount, f.enabled !== false ? 1 : 0, f.name));
   logAction(req.user.id, req.user.fullName, 'UPDATE_SERVICE_FEES');
@@ -726,53 +649,33 @@ app.put('/api/service-fees', requireAuth, requireRole('Admin'), validate(UpdateS
 // ─── Lab Settings ──────────────────────────────────────────────────────────
 // Allowlist of keys that can be written via the settings API
 const ALLOWED_SETTING_KEYS = new Set([
-  'contact_email','contact_facebook','contact_zalo','guide_url','lab_name',
-  'smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from',
-  'terms_content','require_approval',
+  'contact_email', 'contact_facebook', 'contact_zalo', 'guide_url', 'lab_name',
+  'require_approval',
 ]);
 
 app.get('/api/settings', (req, res) => {
   const rows = db.prepare('SELECT key,value FROM lab_settings').all() as any[];
-  const s: Record<string,string> = {};
+  const s: Record<string, string> = {};
   rows.forEach(r => { s[r.key] = r.value; });
-  const { smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, ...pub } = s;
-  res.json(pub);
+  res.json(s);
 });
 
 app.get('/api/settings/admin', requireAuth, requireRole('Admin'), (req, res) => {
   const rows = db.prepare('SELECT key,value FROM lab_settings').all() as any[];
-  const s: Record<string,string> = {};
+  const s: Record<string, string> = {};
   rows.forEach(r => { s[r.key] = r.value; });
   res.json(s);
 });
 
 app.put('/api/settings', requireAuth, requireRole('Admin'), (req: AuthReq, res: Response) => {
-  const settings = req.body as Record<string,string>;
+  const settings = req.body as Record<string, string>;
   const stmt = db.prepare('INSERT OR REPLACE INTO lab_settings (key,value) VALUES (?,?)');
   // Only write allowlisted keys
-  Object.entries(settings).forEach(([k,v]) => {
+  Object.entries(settings).forEach(([k, v]) => {
     if (ALLOWED_SETTING_KEYS.has(k)) stmt.run(k, String(v));
   });
   logAction(req.user.id, req.user.fullName, 'UPDATE_SETTINGS');
   res.json({ success: true });
-});
-
-// ─── SMTP Test ─────────────────────────────────────────────────────────────
-app.post('/api/settings/test-smtp', requireAuth, requireRole('Admin'), async (req: AuthReq, res: Response) => {
-  try {
-    const transporter = createTransporter();
-    const to = getSetting('smtp_user') || getSetting('smtp_from');
-    if (!to) { res.status(400).json({ error: 'Chưa cấu hình SMTP User' }); return; }
-    await transporter.sendMail({
-      from: getSetting('smtp_from') || getSetting('smtp_user'),
-      to,
-      subject: '[BCSE Lab] Test SMTP thành công',
-      html: '<p>Cấu hình SMTP hoạt động tốt! ✅</p><p>Hệ thống gửi email của BCSE 3D Lab đã sẵn sàng.</p>',
-    });
-    res.json({ message: `Email test đã gửi đến ${to}` });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Gửi email thất bại' });
-  }
 });
 
 // ─── Stats Daily ───────────────────────────────────────────────────────────
@@ -793,7 +696,7 @@ app.get('/api/stats/daily', requireAuth, requireRole('Admin', 'Moderator'), (req
     const d = new Date(); d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().split('T')[0];
     const row = rows.find((r: any) => r.date === dateStr);
-    result.push({ date: dateStr, approved: row?.approved||0, done: row?.done||0, rejected: row?.rejected||0, needsRevision: row?.needs_revision||0 });
+    result.push({ date: dateStr, approved: row?.approved || 0, done: row?.done || 0, rejected: row?.rejected || 0, needsRevision: row?.needs_revision || 0 });
   }
   res.json(result);
 });
@@ -804,9 +707,9 @@ if (!existsSync(BACKUP_DIR)) mkdirSync(BACKUP_DIR, { recursive: true });
 
 function createBackup() {
   const now = new Date();
-  const stamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const dest = path.join(BACKUP_DIR, `lab-${stamp}.db`);
-  copyFileSync(path.join(DATA_DIR,'lab.db'), dest);
+  copyFileSync(path.join(DATA_DIR, 'lab.db'), dest);
   return `lab-${stamp}.db`;
 }
 
@@ -814,14 +717,14 @@ app.post('/api/backup', requireAuth, requireRole('Admin'), (req: AuthReq, res: R
 
 app.get('/api/backups', requireAuth, requireRole('Admin'), (req, res) => {
   const files = readdirSync(BACKUP_DIR).filter(f => f.endsWith('.db'))
-    .map(f => ({ name: f, size: statSync(path.join(BACKUP_DIR,f)).size, createdAt: statSync(path.join(BACKUP_DIR,f)).birthtime }))
-    .sort((a,b) => new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime());
+    .map(f => ({ name: f, size: statSync(path.join(BACKUP_DIR, f)).size, createdAt: statSync(path.join(BACKUP_DIR, f)).birthtime }))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   res.json(files);
 });
 
 app.get('/api/backups/:file', requireAuth, requireRole('Admin'), (req, res) => {
   // Sanitize filename and prevent path traversal
-  const file = path.basename(req.params.file.replace(/[^a-zA-Z0-9\-_.]/g,''));
+  const file = path.basename(req.params.file.replace(/[^a-zA-Z0-9\-_.]/g, ''));
   const fp = path.resolve(BACKUP_DIR, file);
   if (!fp.startsWith(path.resolve(BACKUP_DIR))) { res.status(400).json({ error: 'Tên file không hợp lệ' }); return; }
   if (!existsSync(fp)) { res.status(404).json({ error: 'Không tìm thấy file backup' }); return; }
@@ -848,7 +751,7 @@ setInterval(() => {
 if (IS_PROD) {
   const distPath = path.join(process.cwd(), 'dist');
   app.use(express.static(distPath));
-  app.get('*', (req, res) => { if (!req.path.startsWith('/api')) res.sendFile(path.join(distPath,'index.html')); });
+  app.get('*', (req, res) => { if (!req.path.startsWith('/api')) res.sendFile(path.join(distPath, 'index.html')); });
 }
 
 // ─── Start + Graceful shutdown ─────────────────────────────────────────────
@@ -861,7 +764,7 @@ function shutdown(signal: string) {
   logger.info(`Received ${signal}, shutting down gracefully...`);
   server.close(() => {
     logger.info('HTTP server closed');
-    try { db.close(); logger.info('Database closed'); } catch {}
+    try { db.close(); logger.info('Database closed'); } catch { }
     process.exit(0);
   });
   // Force exit after 10s if still not closed
@@ -872,7 +775,7 @@ function shutdown(signal: string) {
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT',  () => shutdown('SIGINT'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught exception', { err });
   shutdown('uncaughtException');
