@@ -7,6 +7,14 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
     sourcemap: true,
+    modulePreload: {
+      resolveDependencies: (_filename, deps, context) => {
+        if (context.hostType === 'html') {
+          return deps.filter((dep) => !/vendor-(motion|three|jszip)/.test(dep));
+        }
+        return deps;
+      },
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {
