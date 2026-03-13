@@ -46,7 +46,7 @@ export const BackupPage: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <HardDrive size={24} className="text-blue-600" />
@@ -54,17 +54,17 @@ export const BackupPage: React.FC = () => {
           </h2>
           <p className="text-sm text-slate-500">Hệ thống tự động sao lưu mỗi 30 ngày. Bạn cũng có thể tạo backup thủ công bất kỳ lúc nào.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={fetchBackups}
-            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+            className="w-full sm:w-auto flex items-center justify-center p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
           >
             <RefreshCw size={18} />
           </button>
           <button
             onClick={handleCreate}
             disabled={creating}
-            className="px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-60 shadow-lg shadow-blue-200 dark:shadow-none"
+            className="w-full sm:w-auto justify-center px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-60 shadow-lg shadow-blue-200 dark:shadow-none"
           >
             {creating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
             Tạo backup ngay
@@ -92,20 +92,20 @@ export const BackupPage: React.FC = () => {
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {backups.map((b, i) => (
-              <div key={i} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                <div className="flex items-center gap-3">
+              <div key={i} className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center">
                     <Database size={18} className="text-slate-400" />
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{b.name}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-900 dark:text-white break-all">{b.name}</p>
                     <p className="text-xs text-slate-400">{formatDate(b.createdAt)} · {formatSize(b.size)}</p>
                   </div>
                 </div>
                 <a
                   href={api.downloadBackup(b.name)}
                   download={b.name}
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                 >
                   <Download size={14} />
                   Tải về

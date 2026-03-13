@@ -158,22 +158,22 @@ export const AdminPrinters: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-slate-900 dark:text-white">Quản lý máy in</h2>
           <p className="text-sm text-slate-500 mt-0.5">{printers.length} máy in tại {locations.length} khu vực</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={fetchPrinters}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 transition-all"
+            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 transition-all"
           >
             <RefreshCw size={14} />
             Làm mới
           </button>
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
           >
             <Plus size={14} />
             Thêm máy in
@@ -308,7 +308,7 @@ export const AdminPrinters: React.FC = () => {
                     <ImageIcon size={32} className="text-slate-300" />
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     ref={fileRef}
                     type="file"
@@ -372,7 +372,7 @@ export const AdminPrinters: React.FC = () => {
               {/* Location */}
               <div>
                 <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Khu vực</label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   {['Mỹ Đình', 'Hòa Lạc'].map(loc => (
                     <button
                       key={loc}
@@ -459,7 +459,7 @@ export const AdminPrinters: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6 pt-0 flex gap-3">
+            <div className="p-6 pt-0 flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setShowModal(false)}
                 className="flex-1 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all"

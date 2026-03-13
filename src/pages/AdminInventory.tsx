@@ -125,7 +125,7 @@ export const AdminInventory: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         {stats.map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -144,7 +144,7 @@ export const AdminInventory: React.FC = () => {
       {showAdd && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
           <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Thêm cuộn nhựa mới</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Khu vực</label>
               <select
@@ -228,7 +228,7 @@ export const AdminInventory: React.FC = () => {
               />
             </div>
           </div>
-          <div className="flex gap-3 mt-4">
+          <div className="flex flex-col sm:flex-row gap-3 mt-4">
             <button
               onClick={handleAdd}
               disabled={saving}
@@ -248,31 +248,31 @@ export const AdminInventory: React.FC = () => {
       )}
 
       {/* Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">Danh mục vật liệu</h3>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
               placeholder="Tìm màu, thương hiệu, mã..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 w-52"
+              className="pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-52"
             />
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <button
             onClick={fetchInventory}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
           >
             <RefreshCw size={14} />
             Làm mới
           </button>
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none"
+            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none"
           >
             <Plus size={14} />
             Thêm cuộn mới
@@ -299,8 +299,83 @@ export const AdminInventory: React.FC = () => {
             {items.length === 0 ? (
               <div className="py-10 text-center text-slate-400 text-sm">Chưa có vật liệu nào tại khu vực này</div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
+              <>
+                <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+                  {items.map((item) => (
+                    <div key={item.id} className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-900 dark:text-white">{item.id}</p>
+                          <p className="text-xs text-slate-500 mt-1">{item.material} · {item.color}</p>
+                          <p className="text-xs text-slate-400 mt-1">{item.brand || 'KhÃ´ng rÃµ thÆ°Æ¡ng hiá»‡u'}</p>
+                        </div>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border",
+                          item.status === 'In Stock' ? "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-900/30 dark:text-emerald-400" :
+                            item.status === 'Low' ? "bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-400" :
+                              "bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400"
+                        )}>
+                          {statusLabel[item.status] || item.status}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {editId === item.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              value={editGrams}
+                              onChange={e => setEditGrams(e.target.value)}
+                              className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-blue-400 rounded text-xs outline-none"
+                              autoFocus
+                            />
+                            <button onClick={() => saveEdit(item.id)} disabled={saving} className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded">
+                              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                            </button>
+                            <button onClick={() => setEditId(null)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                              <span>{item.remainingGrams}g</span>
+                              <span>1000g</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className={cn(
+                                  "h-full rounded-full transition-all",
+                                  item.remainingGrams < 200 ? "bg-red-500" : item.remainingGrams < 500 ? "bg-amber-500" : "bg-emerald-500"
+                                )}
+                                style={{ width: `${Math.min((item.remainingGrams / 1000) * 100, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-1 text-xs text-slate-500 dark:text-slate-400">
+                        <div>Vá»‹ trÃ­ tá»§: {item.location || 'â€”'}</div>
+                        <div>NgÆ°á»¡ng cáº£nh bÃ¡o: {item.threshold}g</div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => { setEditId(item.id); setEditGrams(item.remainingGrams.toString()); }}
+                          className="px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/20 rounded-xl"
+                        >
+                          Cáº­p nháº­t
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 dark:bg-red-900/20 rounded-xl"
+                        >
+                          XÃ³a
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800">
                       <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mã</th>
@@ -387,8 +462,9 @@ export const AdminInventory: React.FC = () => {
                       </tr>
                     ))}
                   </tbody>
-                </table>
-              </div>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         ))

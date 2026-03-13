@@ -84,7 +84,7 @@ export const AdminSettings: React.FC = () => {
       <button
         onClick={handleSave}
         disabled={saving}
-        className="flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 dark:shadow-none transition-all disabled:opacity-60"
+        className="w-full sm:w-auto justify-center flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 dark:shadow-none transition-all disabled:opacity-60"
       >
         {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
         {t('save')}

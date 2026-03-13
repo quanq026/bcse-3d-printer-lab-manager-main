@@ -88,27 +88,27 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
 
   return (
     <div className="h-full flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="relative">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
               placeholder="Tìm kiếm yêu cầu..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 w-64 transition-all"
+              className="pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64 transition-all"
             />
           </div>
           <button
             onClick={fetchJobs}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 transition-all"
+            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 transition-all"
           >
             <RefreshCw size={16} />
             Làm mới
           </button>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full border border-blue-100 uppercase">
             Chờ duyệt: {activeJobs.filter(j => [JobStatus.PENDING_REVIEW, JobStatus.SUBMITTED].includes(j.status)).length}
           </span>
@@ -118,9 +118,9 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
         </div>
       </div>
 
-      <div className="flex-1 flex gap-8 min-h-0">
+      <div className="flex-1 flex flex-col xl:flex-row gap-6 xl:gap-8 min-h-0">
         {/* Left List */}
-        <div className="w-1/3 flex flex-col gap-4 overflow-y-auto pr-2">
+        <div className="w-full xl:w-1/3 flex flex-col gap-4 overflow-y-auto xl:pr-2">
           {loading ? (
             <div className="flex items-center justify-center py-8 text-slate-400">
               <Loader2 size={20} className="animate-spin mr-2" />
@@ -173,7 +173,7 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
         </div>
 
         {/* Right Detail Inspector */}
-        <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
+        <div className="flex-1 min-w-0 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
           {!selectedJob ? (
             <div className="flex-1 flex items-center justify-center text-slate-400 flex-col gap-3">
               <FileText size={40} strokeWidth={1} />
@@ -181,13 +181,13 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
             </div>
           ) : (
             <>
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-4 min-w-0">
                   <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400">
                     <FileText size={24} />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">{selectedJob.jobName}</h3>
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white truncate">{selectedJob.jobName}</h3>
                     <p className="text-xs text-slate-500">Yêu cầu bởi {selectedJob.userName} · {selectedJob.id}</p>
                   </div>
                 </div>
@@ -200,12 +200,12 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
               </div>
 
               {/* Status override bar */}
-              <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-800/30">
+              <div className="px-4 sm:px-6 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3 bg-slate-50 dark:bg-slate-800/30">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Trạng thái:</span>
                 <StatusChip status={selectedJob.status} />
-                <span className="text-slate-300 dark:text-slate-600">→</span>
+                <span className="hidden sm:inline text-slate-300 dark:text-slate-600">→</span>
                 <select
-                  className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full sm:flex-1 px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                   value=""
                   onChange={async (e) => {
                     const newStatus = e.target.value;
@@ -243,9 +243,9 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
                 </select>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8 space-y-8">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
                 {/* Quick Info Grid */}
-                <div className="grid grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                   <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vật liệu</p>
                     <p className="text-sm font-bold text-slate-900 dark:text-white">{selectedJob.materialType} ({selectedJob.color})</p>
@@ -270,7 +270,7 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
                     <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
                       Sau khi slice file của sinh viên, nhập khối lượng nhựa thực tế để hệ thống tính lại chi phí chính xác.
                     </p>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">Gram ước tính mới</label>
                         <input
@@ -325,8 +325,8 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
 
                   {selectedJob.status === JobStatus.PRINTING ? (
                     <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6">
-                      <div className="flex items-center justify-between mb-6">
-                        <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                        <div className="min-w-0">
                           <h5 className="font-bold text-emerald-900 dark:text-emerald-400">Đang tiến hành in...</h5>
                           <p className="text-xs text-emerald-700 dark:text-emerald-500">Máy in: {selectedJob.printerName || 'Chưa gán'}</p>
                         </div>
@@ -384,7 +384,7 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       <div className="space-y-4">
                         <button
                           onClick={() => doAction(JobStatus.APPROVED)}

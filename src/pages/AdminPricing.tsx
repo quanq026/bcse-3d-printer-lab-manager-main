@@ -68,7 +68,7 @@ export const AdminPricing: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Cấu hình bảng giá</h2>
           <p className="text-sm text-slate-500">Thiết lập đơn giá vật liệu và các loại phí dịch vụ.</p>
@@ -76,7 +76,7 @@ export const AdminPricing: React.FC = () => {
         <button
           onClick={handleSave}
           disabled={saving || loading}
-          className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none flex items-center gap-2 disabled:opacity-60"
+          className="w-full sm:w-auto justify-center px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none flex items-center gap-2 disabled:opacity-60"
         >
           {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
           {saved ? 'Đã lưu!' : 'Lưu thay đổi'}
@@ -99,7 +99,7 @@ export const AdminPricing: React.FC = () => {
           ) : (
             <div className="space-y-4">
               {rules.map((rule) => (
-                <div key={rule.material} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div key={rule.material} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 dark:border-slate-800">
                       <Package size={20} />
@@ -109,7 +109,7 @@ export const AdminPricing: React.FC = () => {
                       <p className="text-[10px] text-slate-500 uppercase tracking-widest">Filament</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                     <input
                       type="number"
                       value={rule.pricePerGram}
@@ -140,7 +140,7 @@ export const AdminPricing: React.FC = () => {
             <div className="space-y-4">
               {fees.map((fee) => (
                 <div key={fee.name} className={`p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 ${fee.enabled === false ? 'opacity-50' : ''}`}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="space-y-0.5 flex-1 mr-3">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">{fee.label}</p>
@@ -155,7 +155,7 @@ export const AdminPricing: React.FC = () => {
                       </div>
                       <p className="text-[10px] text-slate-500">{fee.description}</p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                       {/* Toggle for rush_fee */}
                       {fee.name === 'rush_fee' && (
                         <button
@@ -174,7 +174,7 @@ export const AdminPricing: React.FC = () => {
                         value={fee.amount}
                         onChange={e => updateFee(fee.name, parseInt(e.target.value) || 0)}
                         disabled={fee.enabled === false && fee.name === 'rush_fee'}
-                        className="w-24 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-right outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
+                        className="w-full sm:w-24 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-right outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
                       />
                       <span className="text-xs font-bold text-slate-400 w-10">
                         {fee.name === 'service_fee' ? 'đ/g' : 'đ'}
@@ -196,7 +196,7 @@ export const AdminPricing: React.FC = () => {
       </div>
 
       {/* Calculator Preview */}
-      <div className="bg-slate-900 rounded-3xl p-8 text-white relative overflow-hidden">
+      <div className="bg-slate-900 rounded-3xl p-5 sm:p-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600 rounded-full blur-3xl opacity-20 -mr-32 -mt-32"></div>
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="max-w-sm">
