@@ -909,7 +909,7 @@ npm run dev:server
 # Terminal 2 — Frontend Vite (port 5173)
 npm run dev
 ``` 
-
+ 
 Mở trình duyệt: **http://localhost:5173**
 
 > Lần đầu khởi động, hệ thống tự tạo `data/lab.db` và seed dữ liệu mẫu (tài khoản, máy in, filament, bảng giá).
