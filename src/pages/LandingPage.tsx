@@ -98,9 +98,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   const contactZalo = settings.contact_zalo;
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row" style={{ background: '#fdf8f0' }}>
+    <main className="min-h-screen flex flex-col md:flex-row" style={{ background: '#fdf8f0' }}>
       {/* ── Left: Hero ─────────────────────────────────────────────────── */}
-      <div className="flex-1 relative flex flex-col justify-between p-6 sm:p-10 md:p-14 overflow-hidden"
+      <section className="flex-1 relative flex flex-col justify-between p-6 sm:p-10 md:p-14 overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #1c1917 0%, #292524 60%, #1c1917 100%)' }}>
         <FloatingShapes />
 
@@ -179,7 +179,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                   <Icon size={16} style={{ color: '#d97706' }} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-white">{title}</h4>
+                  <h3 className="font-bold text-sm text-white">{title}</h3>
                   <p className="text-xs leading-relaxed mt-0.5" style={{ color: '#78716c' }}>{desc}</p>
                 </div>
               </div>
@@ -206,10 +206,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             <span className="opacity-40">{t('contactSupport')}</span>
           )}
         </div>
-      </div>
+      </section>
 
       {/* ── Right: Auth form ────────────────────────────────────────────── */}
-      <div className="w-full md:w-[480px] flex flex-col justify-center p-5 sm:p-8 md:p-12 relative border-t md:border-t-0 md:border-l"
+      <section className="w-full md:w-[480px] flex flex-col justify-center p-5 sm:p-8 md:p-12 relative border-t md:border-t-0 md:border-l"
         style={{ background: '#fffbf5', borderColor: '#e7e0d6' }}>
 
         {/* Top bar: Lang toggle */}
@@ -228,9 +228,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           {/* Header */}
           <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
             <div className="w-10 h-1 rounded-full bg-amber-500 mb-4" />
-            <h3 className="text-2xl font-black mb-1.5" style={{ color: '#1c1917', fontFamily: 'Georgia, serif' }}>
+            <h2 id="auth-title" className="text-2xl font-black mb-1.5" style={{ color: '#1c1917', fontFamily: 'Georgia, serif' }}>
               {tab === 'login' ? t('welcome') : t('registerTitle')}
-            </h3>
+            </h2>
             <p className="text-sm" style={{ color: '#78716c' }}>
               {tab === 'login' ? t('loginSubtitle') : t('registerSubtitle')}
             </p>
@@ -246,7 +246,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                   "flex-1 py-2 text-sm font-bold rounded-lg transition-all",
                   tab === t2 ? "bg-white shadow-sm" : "hover:text-stone-700"
                 )}
-                style={{ color: tab === t2 ? '#1c1917' : '#78716c' }}
+                style={{ color: tab === t2 ? '#1c1917' : '#57534e' }}
               >
                 {t2 === 'login' ? t('login') : t('register')}
               </button>
@@ -286,7 +286,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                   <input type={showPass ? 'text' : 'password'} placeholder="••••••••" required
                     value={loginPass} onChange={e => setLoginPass(e.target.value)}
                     className="auth-input pr-10" />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#a8a29e' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md"
+                    style={{ color: '#78716c' }}
+                    aria-label={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    title={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  >
                     {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
@@ -324,7 +331,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               <Field label={t('password')}>
                 <div className="relative">
                   <input type={showPass ? 'text' : 'password'} placeholder="••••••••" required value={password} onChange={e => setPassword(e.target.value)} className="auth-input pr-10" />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#a8a29e' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md"
+                    style={{ color: '#78716c' }}
+                    aria-label={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    title={showPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  >
                     {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
@@ -340,7 +354,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             </form>
           )}
         </div>
-      </div>
+      </section>
 
 
 
@@ -367,7 +381,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           display: none;
         }
       `}</style>
-    </div>
+    </main>
   );
 };
 
