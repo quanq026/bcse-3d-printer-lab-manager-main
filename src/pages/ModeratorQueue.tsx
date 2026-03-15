@@ -1,28 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Search,
-  Clock,
-  User,
-  FileText,
-  CheckCircle2,
-  XCircle,
-  MoreVertical,
-  Check,
-  Loader2,
-  RefreshCw,
-  PenLine,
   Calculator,
+  Check,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Loader2,
+  PenLine,
+  RefreshCw,
+  Search,
+  User,
+  XCircle,
 } from 'lucide-react';
 import { StatusChip } from '../components/StatusChip';
-import { JobStatus, MaterialSource } from '../types';
-import { cn } from '../lib/utils';
+import { useLang } from '../contexts/LanguageContext';
 import { api } from '../lib/api';
+import { fillText, getUiText } from '../lib/uiText';
+import { cn } from '../lib/utils';
+import { JobStatus, MaterialSource } from '../types';
 
 interface ModeratorQueueProps {
   onSelectJob: (id: string) => void;
 }
 
+const ACTIVE_STATUSES = [
+  JobStatus.PENDING_REVIEW,
+  JobStatus.SUBMITTED,
+  JobStatus.PRINTING,
+  JobStatus.APPROVED,
+  JobStatus.SCHEDULED,
+  JobStatus.NEEDS_REVISION,
+];
+
+const MODERATOR_STATUS_OPTIONS = [
+  JobStatus.SUBMITTED,
+  JobStatus.PENDING_REVIEW,
+  JobStatus.APPROVED,
+  JobStatus.SCHEDULED,
+  JobStatus.PRINTING,
+  JobStatus.DONE,
+  JobStatus.NEEDS_REVISION,
+  JobStatus.REJECTED,
+  JobStatus.CANCELLED,
+];
+
 export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) => {
+  const { lang } = useLang();
+  const text = getUiText(lang);
+  const copy = text.moderatorQueue;
+  const shared = text.shared;
+  const locale = lang === 'JP' ? 'en-US' : 'vi-VN';
+
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -36,17 +64,20 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
   const [pricing, setPricing] = useState<any[]>([]);
   const [serviceFees, setServiceFees] = useState<any[]>([]);
 
+  const statusLabel = (value: JobStatus | string) => shared.jobStatuses[value as keyof typeof shared.jobStatuses] || value;
+  const materialSourceLabel = (value: MaterialSource | string) => shared.materialSources[value as keyof typeof shared.materialSources] || value;
+
   const fetchJobs = async () => {
     setLoading(true);
     try {
       const data = await api.getJobs();
       setJobs(data);
-      if (!selectedId && data.length > 0) {
-        const first = data.find((j: any) =>
-          [JobStatus.PENDING_REVIEW, JobStatus.SUBMITTED, JobStatus.PRINTING, JobStatus.APPROVED, JobStatus.SCHEDULED].includes(j.status)
-        );
-        if (first) setSelectedId(first.id);
-      }
+
+      const nextSelection = data.find((job: any) => job.id === selectedId)
+        || data.find((job: any) => ACTIVE_STATUSES.includes(job.status))
+        || data[0];
+
+      setSelectedId(nextSelection?.id || null);
     } catch (err) {
       console.error(err);
     } finally {
@@ -61,17 +92,27 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
     api.getServiceFees().then(setServiceFees).catch(console.error);
   }, []);
 
-  const activeJobs = jobs.filter(j =>
-    [JobStatus.PENDING_REVIEW, JobStatus.SUBMITTED, JobStatus.PRINTING, JobStatus.APPROVED, JobStatus.SCHEDULED, JobStatus.NEEDS_REVISION].includes(j.status)
+  const activeJobs = useMemo(
+    () => jobs.filter((job) => ACTIVE_STATUSES.includes(job.status)),
+    [jobs]
   );
 
-  const filteredJobs = activeJobs.filter(j =>
-    !search || j.jobName.toLowerCase().includes(search.toLowerCase()) || j.userName?.toLowerCase().includes(search.toLowerCase())
+  const filteredJobs = useMemo(
+    () => activeJobs.filter((job) => (
+      !search
+      || job.jobName?.toLowerCase().includes(search.toLowerCase())
+      || job.userName?.toLowerCase().includes(search.toLowerCase())
+      || job.id?.toLowerCase().includes(search.toLowerCase())
+    )),
+    [activeJobs, search]
   );
 
-  const selectedJob = jobs.find(j => j.id === selectedId);
+  const selectedJob = jobs.find((job) => job.id === selectedId);
+  const pendingCount = activeJobs.filter((job) => [JobStatus.PENDING_REVIEW, JobStatus.SUBMITTED].includes(job.status)).length;
+  const printingCount = activeJobs.filter((job) => job.status === JobStatus.PRINTING).length;
+  const revisionCount = activeJobs.filter((job) => job.status === JobStatus.NEEDS_REVISION).length;
 
-  const doAction = async (status: string, extra?: any) => {
+  const doAction = async (status: JobStatus, extra?: Record<string, unknown>) => {
     if (!selectedId) return;
     setActionLoading(true);
     try {
@@ -80,374 +121,458 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
       setModeratorNote('');
       setActualGrams('');
     } catch (err: any) {
-      alert(err.message || 'Có lỗi xảy ra');
+      alert(err.message || copy.actionError);
     } finally {
       setActionLoading(false);
     }
   };
 
-  return (
-    <div className="h-full flex flex-col gap-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+  const handlePrinterAssign = async (printerId: string) => {
+    if (!selectedJob) return;
+    try {
+      await api.updateJob(selectedJob.id, { printerId: printerId || null });
+      await fetchJobs();
+    } catch (err: any) {
+      alert(err.message || copy.updateError);
+    }
+  };
+
+  const handleStatusOverride = async (newStatus: JobStatus) => {
+    if (!selectedJob) return;
+    if (!confirm(fillText(copy.confirmStatus, { from: statusLabel(selectedJob.status), to: statusLabel(newStatus) }))) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      await api.updateJob(selectedJob.id, { status: newStatus });
+      await fetchJobs();
+    } catch (err: any) {
+      alert(err.message || copy.updateError);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const renderQuoteCard = () => {
+    if (
+      !selectedJob
+      || selectedJob.printMode !== 'lab_assisted'
+      || selectedJob.materialSource !== MaterialSource.LAB
+      || ![JobStatus.PENDING_REVIEW, JobStatus.SUBMITTED].includes(selectedJob.status)
+    ) {
+      return null;
+    }
+
+    const grams = Number.parseInt(quoteGrams, 10) || selectedJob.estimatedGrams || 0;
+    const pricingRule = pricing.find((item: any) => item.material === selectedJob.materialType);
+    const materialCost = (pricingRule?.pricePerGram || 0) * grams;
+    const serviceFee = serviceFees.find((item: any) => item.name === 'service_fee');
+    const serviceCost = (serviceFee?.enabled !== false ? serviceFee?.amount || 0 : 0) * grams;
+    const totalCost = materialCost + serviceCost;
+
+    return (
+      <section className="app-panel border-[rgba(240,179,91,0.28)] bg-[linear-gradient(135deg,rgba(255,248,234,0.94),rgba(255,240,219,0.9))] px-5 py-5 dark:border-[rgba(240,179,91,0.18)] dark:bg-[linear-gradient(135deg,rgba(240,179,91,0.12),rgba(239,125,87,0.08))]">
+        <div className="flex items-center gap-2">
+          <Calculator size={18} className="text-[var(--landing-amber)]" />
+          <p className="app-overline text-[var(--landing-amber)]">{copy.quoteEyebrow}</p>
+        </div>
+        <p className="mt-3 text-sm text-slate-700 dark:text-[var(--landing-text)]">{copy.quoteDesc}</p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="app-overline mb-2 block">{copy.quoteGrams}</label>
             <input
-              type="text"
-              placeholder="Tìm kiếm yêu cầu..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64 transition-all"
+              type="number"
+              min="0"
+              placeholder={selectedJob.estimatedGrams?.toString() || '0'}
+              value={quoteGrams}
+              onChange={(event) => setQuoteGrams(event.target.value)}
+              className="app-control"
             />
           </div>
-          <button
-            onClick={fetchJobs}
-            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 transition-all"
-          >
-            <RefreshCw size={16} />
-            Làm mới
-          </button>
+          <div>
+            <label className="app-overline mb-2 block">{copy.quoteCost}</label>
+            <div className="app-panel-soft flex min-h-[46px] items-center px-4 text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">
+              {totalCost.toLocaleString(locale)} VND
+            </div>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full border border-blue-100 uppercase">
-            Chờ duyệt: {activeJobs.filter(j => [JobStatus.PENDING_REVIEW, JobStatus.SUBMITTED].includes(j.status)).length}
-          </span>
-          <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full border border-emerald-100 uppercase">
-            Đang in: {activeJobs.filter(j => j.status === JobStatus.PRINTING).length}
-          </span>
-        </div>
-      </div>
 
-      <div className="flex-1 flex flex-col xl:flex-row gap-6 xl:gap-8 min-h-0">
-        {/* Left List */}
-        <div className="w-full xl:w-1/3 flex flex-col gap-4 overflow-y-auto xl:pr-2">
-          {loading ? (
-            <div className="flex items-center justify-center py-8 text-slate-400">
-              <Loader2 size={20} className="animate-spin mr-2" />
-              <span className="text-sm">Đang tải...</span>
+        <button
+          disabled={quoteSaving || !quoteGrams || Number.parseInt(quoteGrams, 10) <= 0}
+          onClick={async () => {
+            setQuoteSaving(true);
+            try {
+              await api.updateJob(selectedJob.id, { estimatedGrams: Number.parseInt(quoteGrams, 10) });
+              await fetchJobs();
+              setQuoteGrams('');
+              alert(copy.quoteSaved);
+            } catch (err: any) {
+              alert(err.message || copy.updateError);
+            } finally {
+              setQuoteSaving(false);
+            }
+          }}
+          className="app-primary-button mt-5 inline-flex min-h-[50px] w-full items-center justify-center gap-2 px-5 text-sm font-black uppercase tracking-[0.16em] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {quoteSaving ? <Loader2 size={18} className="animate-spin" /> : <Calculator size={18} />}
+          {copy.quoteSave}
+        </button>
+      </section>
+    );
+  };
+
+  const renderActionBoard = () => {
+    if (!selectedJob) return null;
+
+    if (selectedJob.status === JobStatus.PRINTING) {
+      return (
+        <section className="app-panel px-5 py-5">
+          <p className="app-overline">{copy.printingEyebrow}</p>
+          <div className="mt-4 grid gap-4">
+            <div className="app-panel-soft px-4 py-4">
+              <p className="text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">
+                {fillText(copy.printingMachine, { name: selectedJob.printerName || copy.noPrinter })}
+              </p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{copy.printingDesc}</p>
             </div>
-          ) : filteredJobs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2">
-              <FileText size={32} strokeWidth={1} />
-              <p className="text-sm">Không có yêu cầu nào</p>
+
+            <div>
+              <label className="app-overline mb-2 block">{copy.actualGrams}</label>
+              <input
+                type="number"
+                value={actualGrams}
+                onChange={(event) => setActualGrams(event.target.value)}
+                placeholder={copy.actualGramsPlaceholder}
+                className="app-control"
+              />
             </div>
-          ) : (
-            filteredJobs.map((job) => (
-              <div
-                key={job.id}
-                onClick={() => setSelectedId(job.id)}
-                className={cn(
-                  "p-4 rounded-2xl border-2 transition-all cursor-pointer relative group",
-                  selectedId === job.id
-                    ? "border-blue-600 bg-blue-50/50 dark:bg-blue-900/20"
-                    : "border-white dark:border-slate-900 bg-white dark:bg-slate-900 hover:border-blue-200 shadow-sm"
-                )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                onClick={() => doAction(JobStatus.DONE, { actualGrams: Number.parseFloat(actualGrams) || undefined })}
+                disabled={actionLoading}
+                className="app-primary-button inline-flex min-h-[50px] items-center justify-center gap-2 px-5 text-sm font-black uppercase tracking-[0.16em] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{job.id}</span>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[150px]">{job.jobName}</h4>
-                  </div>
-                  <StatusChip status={job.status} className="text-[10px]" />
-                </div>
-                <div className="flex items-center gap-3 text-xs text-slate-500 mb-4">
-                  <div className="flex items-center gap-1">
-                    <User size={14} />
-                    {job.userName}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock size={14} />
-                    {job.estimatedTime}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">{job.materialType} · {job.color}</span>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400">{job.materialSource === MaterialSource.LAB ? 'Mua nhựa' : 'Tự mang'}</span>
-                </div>
-              </div>
-            ))
-          )}
+                {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                {copy.markDone}
+              </button>
+              <button
+                onClick={() => doAction(JobStatus.CANCELLED)}
+                disabled={actionLoading}
+                className="inline-flex min-h-[50px] items-center justify-center gap-2 border border-rose-200 bg-rose-100/80 px-5 text-sm font-black uppercase tracking-[0.16em] text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <XCircle size={18} />
+                {copy.cancelJob}
+              </button>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if ([JobStatus.APPROVED, JobStatus.SCHEDULED].includes(selectedJob.status)) {
+      return (
+        <section className="app-panel px-5 py-5">
+          <p className="app-overline">{copy.readyEyebrow}</p>
+          <div className="mt-4 grid gap-4">
+            <div>
+              <label className="app-overline mb-2 block">{copy.assignPrinter}</label>
+              <select
+                className="app-control"
+                value={selectedJob.printerId || ''}
+                onChange={(event) => handlePrinterAssign(event.target.value)}
+              >
+                <option value="">{shared.choosePrinter}</option>
+                {printers.map((printer: any) => (
+                  <option key={printer.id} value={printer.id}>
+                    {printer.name} ({printer.status})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={() => doAction(JobStatus.PRINTING)}
+              disabled={actionLoading}
+              className="app-primary-button inline-flex min-h-[50px] items-center justify-center gap-2 px-5 text-sm font-black uppercase tracking-[0.16em] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+              {copy.startPrinting}
+            </button>
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <section className="app-panel px-5 py-5">
+        <p className="app-overline">{copy.moderationEyebrow}</p>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="space-y-3">
+            <button
+              onClick={() => doAction(JobStatus.APPROVED)}
+              disabled={actionLoading}
+              className="app-primary-button inline-flex min-h-[50px] w-full items-center justify-center gap-2 px-5 text-sm font-black uppercase tracking-[0.16em] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+              {copy.approve}
+            </button>
+
+            <button
+              onClick={() => {
+                if (!moderatorNote.trim()) {
+                  alert(copy.revisionNoteAlert);
+                  return;
+                }
+                doAction(JobStatus.NEEDS_REVISION, { revisionNote: moderatorNote });
+              }}
+              disabled={actionLoading}
+              className="inline-flex min-h-[50px] w-full items-center justify-center gap-2 border border-amber-200 bg-amber-100/80 px-5 text-sm font-black uppercase tracking-[0.16em] text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <PenLine size={18} />
+              {copy.requestRevision}
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={() => doAction(JobStatus.REJECTED)}
+              disabled={actionLoading}
+              className="inline-flex min-h-[50px] w-full items-center justify-center gap-2 border border-rose-200 bg-rose-100/80 px-5 text-sm font-black uppercase tracking-[0.16em] text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
+              {copy.reject}
+            </button>
+
+            <div className="app-panel-soft px-4 py-4">
+              <label className="app-overline mb-2 block">{copy.assignPrinterFirst}</label>
+              <select
+                className="app-control"
+                value={selectedJob.printerId || ''}
+                onChange={(event) => handlePrinterAssign(event.target.value)}
+              >
+                <option value="">{shared.choosePrinter}</option>
+                {printers.map((printer: any) => (
+                  <option key={printer.id} value={printer.id}>
+                    {printer.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  return (
+    <div className="app-admin-squared app-admin-compact space-y-5">
+      <section className="app-panel grid gap-5 px-5 py-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)] lg:px-6 lg:py-6">
+        <div>
+          <p className="app-eyebrow">{copy.heroEyebrow}</p>
+          <h2 className="app-display-sm mt-2">{copy.heroTitle}</h2>
+          <p className="app-subtle-copy mt-3 max-w-2xl text-sm">{copy.heroDesc}</p>
         </div>
 
-        {/* Right Detail Inspector */}
-        <div className="flex-1 min-w-0 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
-          {!selectedJob ? (
-            <div className="flex-1 flex items-center justify-center text-slate-400 flex-col gap-3">
-              <FileText size={40} strokeWidth={1} />
-              <p className="text-sm">Chọn một yêu cầu để xem chi tiết</p>
-            </div>
-          ) : (
-            <>
-              <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400">
-                    <FileText size={24} />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white truncate">{selectedJob.jobName}</h3>
-                    <p className="text-xs text-slate-500">Yêu cầu bởi {selectedJob.userName} · {selectedJob.id}</p>
-                  </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            { ...copy.cards.pending, value: pendingCount },
+            { ...copy.cards.printing, value: printingCount },
+            { ...copy.cards.revision, value: revisionCount },
+          ].map((card, index) => (
+            <article key={card.label} className="app-panel-soft app-hover-box px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <p className="app-overline">{card.label}</p>
+                <span className="app-overline">0{index + 1}</span>
+              </div>
+              <p className="app-stat-number mt-4 text-slate-900 dark:text-[var(--landing-text)]">{card.value}</p>
+              <p className="mt-2 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{card.note}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
+        <div className="app-panel overflow-hidden">
+          <div className="border-b border-[rgba(30,23,19,0.08)] px-5 py-4 dark:border-white/8">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="app-overline">{copy.listEyebrow}</p>
+                  <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-[var(--landing-text)]">{fillText(copy.listCount, { count: filteredJobs.length })}</h3>
                 </div>
                 <button
-                  onClick={() => onSelectJob(selectedJob.id)}
-                  className="p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all"
+                  onClick={fetchJobs}
+                  className="app-secondary-button inline-flex min-h-[44px] items-center justify-center gap-2 px-4 text-sm font-semibold"
                 >
-                  <MoreVertical size={20} />
+                  <RefreshCw size={16} />
+                  {copy.refresh}
                 </button>
               </div>
 
-              {/* Status override bar */}
-              <div className="px-4 sm:px-6 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3 bg-slate-50 dark:bg-slate-800/30">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Trạng thái:</span>
-                <StatusChip status={selectedJob.status} />
-                <span className="hidden sm:inline text-slate-300 dark:text-slate-600">→</span>
-                <select
-                  className="w-full sm:flex-1 px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                  value=""
-                  onChange={async (e) => {
-                    const newStatus = e.target.value;
-                    if (!newStatus) return;
-                    if (!confirm(`Chuyển trạng thái từ "${selectedJob.status}" sang "${newStatus}"?`)) {
-                      e.target.value = '';
-                      return;
-                    }
-                    setActionLoading(true);
-                    try {
-                      await api.updateJob(selectedJob.id, { status: newStatus });
-                      await fetchJobs();
-                    } catch (err: any) {
-                      alert(err.message || 'Cập nhật thất bại');
-                    } finally {
-                      setActionLoading(false);
-                      e.target.value = '';
-                    }
-                  }}
-                >
-                  <option value="">Chuyển sang...</option>
-                  {[
-                    JobStatus.SUBMITTED,
-                    JobStatus.PENDING_REVIEW,
-                    JobStatus.APPROVED,
-                    JobStatus.SCHEDULED,
-                    JobStatus.PRINTING,
-                    JobStatus.DONE,
-                    JobStatus.NEEDS_REVISION,
-                    JobStatus.REJECTED,
-                    JobStatus.CANCELLED,
-                  ].filter(s => s !== selectedJob.status).map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/35" size={16} />
+                <input
+                  type="text"
+                  placeholder={copy.searchPlaceholder}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  className="app-control pl-10"
+                />
               </div>
+            </div>
+          </div>
 
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
-                {/* Quick Info Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vật liệu</p>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{selectedJob.materialType} ({selectedJob.color})</p>
-                  </div>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Khối lượng (Ước tính)</p>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{selectedJob.estimatedGrams} gram</p>
-                  </div>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Nguồn nhựa</p>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{selectedJob.materialSource === MaterialSource.LAB ? 'Mua từ Lab' : 'Tự mang'}</p>
-                  </div>
+          <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 px-6 py-16 text-slate-500 dark:text-[var(--landing-muted)]">
+                <Loader2 size={22} className="animate-spin" />
+                <span className="text-sm">{copy.loading}</span>
+              </div>
+            ) : filteredJobs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+                <div className="flex h-16 w-16 items-center justify-center border border-[rgba(30,23,19,0.08)] bg-white/50 text-slate-400 dark:border-white/8 dark:bg-white/4 dark:text-white/38">
+                  <FileText size={28} strokeWidth={1.4} />
                 </div>
+                <div>
+                  <p className="text-base font-semibold text-slate-900 dark:text-[var(--landing-text)]">{copy.emptyTitle}</p>
+                  <p className="mt-2 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{copy.emptyDesc}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 px-4 py-4">
+                {filteredJobs.map((job) => (
+                  <button
+                    key={job.id}
+                    onClick={() => setSelectedId(job.id)}
+                    className={cn(
+                      'app-panel-soft app-hover-box block w-full px-4 py-4 text-left',
+                      selectedId === job.id && 'border-[rgba(239,125,87,0.24)] bg-[rgba(239,125,87,0.1)] dark:bg-[rgba(239,125,87,0.12)]'
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="app-overline">#{job.id}</p>
+                        <p className="mt-2 truncate text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.jobName}</p>
+                      </div>
+                      <StatusChip status={job.status as JobStatus} className="text-[9px]" />
+                    </div>
 
-                {/* Báo giá lại — for lab_assisted + Lab material */}
-                {selectedJob.printMode === 'lab_assisted' && selectedJob.materialSource === 'Lab' && [JobStatus.PENDING_REVIEW, JobStatus.SUBMITTED].includes(selectedJob.status) && (
-                  <div className="bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800 rounded-2xl p-6 space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Calculator size={18} className="text-amber-600" />
-                      <h4 className="text-sm font-bold text-amber-900 dark:text-amber-300">Báo giá lại cho sinh viên</h4>
+                    <div className="mt-4 grid gap-2 text-xs text-slate-500 dark:text-[var(--landing-muted)]">
+                      <p className="inline-flex items-center gap-2">
+                        <User size={12} />
+                        {job.userName}
+                      </p>
+                      <p className="inline-flex items-center gap-2">
+                        <Clock size={12} />
+                        {job.estimatedTime || shared.noDuration}
+                      </p>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400 dark:text-white/38">
+                        {job.materialType} � {job.color} � {materialSourceLabel(job.materialSource)}
+                      </p>
                     </div>
-                    <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-                      Sau khi slice file của sinh viên, nhập khối lượng nhựa thực tế để hệ thống tính lại chi phí chính xác.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">Gram ước tính mới</label>
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder={selectedJob.estimatedGrams?.toString() || '0'}
-                          value={quoteGrams}
-                          onChange={e => setQuoteGrams(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-lg outline-none text-sm focus:ring-2 focus:ring-amber-500"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">Chi phí dự kiến</label>
-                        <div className="px-4 py-2.5 bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg text-sm font-bold text-amber-900 dark:text-amber-300">
-                          {(() => {
-                            const g = parseInt(quoteGrams) || selectedJob.estimatedGrams || 0;
-                            const rule = pricing.find((p: any) => p.material === selectedJob.materialType);
-                            const matCost = (rule?.pricePerGram || 0) * g;
-                            const svcFee = serviceFees.find((f: any) => f.name === 'service_fee');
-                            const svcCost = (svcFee?.enabled !== false ? svcFee?.amount || 0 : 0) * g;
-                            return (matCost + svcCost).toLocaleString() + 'đ';
-                          })()}
-                        </div>
-                      </div>
-                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="app-panel overflow-hidden">
+          {!selectedJob ? (
+            <div className="flex min-h-[500px] flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+              <div className="flex h-16 w-16 items-center justify-center border border-[rgba(30,23,19,0.08)] bg-white/50 text-slate-400 dark:border-white/8 dark:bg-white/4 dark:text-white/38">
+                <FileText size={28} strokeWidth={1.4} />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-slate-900 dark:text-[var(--landing-text)]">{copy.selectTitle}</p>
+                <p className="mt-2 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{copy.selectDesc}</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="border-b border-[rgba(30,23,19,0.08)] px-5 py-4 dark:border-white/8">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <p className="app-overline">{copy.profileEyebrow}</p>
+                    <h3 className="mt-2 truncate text-xl font-semibold text-slate-900 dark:text-[var(--landing-text)]">{selectedJob.jobName}</h3>
+                    <p className="mt-2 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{fillText(copy.requestedBy, { user: selectedJob.userName, id: selectedJob.id })}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <StatusChip status={selectedJob.status as JobStatus} />
                     <button
-                      disabled={quoteSaving || !quoteGrams || parseInt(quoteGrams) <= 0}
-                      onClick={async () => {
-                        setQuoteSaving(true);
-                        try {
-                          await api.updateJob(selectedJob.id, { estimatedGrams: parseInt(quoteGrams) });
-                          await fetchJobs();
-                          setQuoteGrams('');
-                          alert('Đã cập nhật báo giá thành công!');
-                        } catch (err: any) {
-                          alert(err.message || 'Cập nhật thất bại');
-                        } finally {
-                          setQuoteSaving(false);
-                        }
-                      }}
-                      className="w-full py-3 bg-amber-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-amber-700 transition-all disabled:opacity-50"
+                      onClick={() => onSelectJob(selectedJob.id)}
+                      className="app-secondary-button inline-flex min-h-[44px] items-center justify-center gap-2 px-4 text-sm font-semibold"
                     >
-                      {quoteSaving ? <Loader2 size={18} className="animate-spin" /> : <Calculator size={18} />}
-                      Lưu báo giá mới
+                      <FileText size={16} />
+                      {copy.openDetail}
                     </button>
                   </div>
-                )}
-
-                {/* Action Area */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Thao tác phê duyệt</h4>
-
-                  {selectedJob.status === JobStatus.PRINTING ? (
-                    <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                        <div className="min-w-0">
-                          <h5 className="font-bold text-emerald-900 dark:text-emerald-400">Đang tiến hành in...</h5>
-                          <p className="text-xs text-emerald-700 dark:text-emerald-500">Máy in: {selectedJob.printerName || 'Chưa gán'}</p>
-                        </div>
-                        <button
-                          onClick={() => doAction(JobStatus.CANCELLED)}
-                          disabled={actionLoading}
-                          className="p-3 bg-red-600 text-white rounded-xl shadow-lg hover:bg-red-700 transition-all disabled:opacity-60"
-                        >
-                          <XCircle size={20} />
-                        </button>
-                      </div>
-                      <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-emerald-900 dark:text-emerald-400 uppercase tracking-wider">Khối lượng nhựa thực tế (Gram)</label>
-                          <input
-                            type="number"
-                            placeholder="Nhập sau khi in xong..."
-                            value={actualGrams}
-                            onChange={e => setActualGrams(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-900 rounded-lg outline-none text-sm"
-                          />
-                        </div>
-                        <button
-                          onClick={() => doAction(JobStatus.DONE, { actualGrams: parseFloat(actualGrams) || undefined })}
-                          disabled={actionLoading}
-                          className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all disabled:opacity-60"
-                        >
-                          {actionLoading ? <Loader2 size={20} className="animate-spin" /> : <Check size={20} />}
-                          Đánh dấu hoàn thành
-                        </button>
-                      </div>
-                    </div>
-                  ) : [JobStatus.APPROVED, JobStatus.SCHEDULED].includes(selectedJob.status) ? (
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Gán máy in</label>
-                        <select
-                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-sm"
-                          defaultValue={selectedJob.printerId || ''}
-                          onChange={e => api.updateJob(selectedJob.id, { printerId: e.target.value })}
-                        >
-                          <option value="">-- Chọn máy in --</option>
-                          {printers.map((p: any) => (
-                            <option key={p.id} value={p.id}>{p.name} ({p.status})</option>
-                          ))}
-                        </select>
-                      </div>
-                      <button
-                        onClick={() => doAction(JobStatus.PRINTING)}
-                        disabled={actionLoading}
-                        className="w-full py-4 bg-emerald-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-700 shadow-lg transition-all disabled:opacity-60"
-                      >
-                        {actionLoading ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
-                        Bắt đầu in
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div className="space-y-4">
-                        <button
-                          onClick={() => doAction(JobStatus.APPROVED)}
-                          disabled={actionLoading}
-                          className="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-200 dark:shadow-none transition-all disabled:opacity-60"
-                        >
-                          {actionLoading ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
-                          Phê duyệt &amp; Xếp lịch
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (!moderatorNote.trim()) { alert('Vui lòng nhập nội dung yêu cầu sửa ở ô Ghi chú bên dưới'); return; }
-                            doAction(JobStatus.NEEDS_REVISION, { revisionNote: moderatorNote });
-                          }}
-                          disabled={actionLoading}
-                          className="w-full py-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-amber-100 transition-all"
-                        >
-                          <PenLine size={20} />
-                          Yêu cầu sửa đổi
-                        </button>
-                      </div>
-                      <div className="space-y-4">
-                        <button
-                          onClick={() => doAction(JobStatus.REJECTED)}
-                          disabled={actionLoading}
-                          className="w-full py-4 bg-red-50 dark:bg-red-900/20 text-red-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 transition-all border border-red-100 dark:border-red-900/30 disabled:opacity-60"
-                        >
-                          {actionLoading ? <Loader2 size={20} className="animate-spin" /> : <XCircle size={20} />}
-                          Từ chối yêu cầu
-                        </button>
-                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Gán máy in</label>
-                          <select
-                            className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none"
-                            defaultValue={selectedJob.printerId || ''}
-                            onChange={e => api.updateJob(selectedJob.id, { printerId: e.target.value })}
-                          >
-                            <option value="">-- Chọn --</option>
-                            {printers.map((p: any) => (
-                              <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
+              </div>
 
-                {/* Notes Box */}
-                <div className="space-y-3">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ghi chú / Nội dung yêu cầu sửa</label>
-                  <textarea
-                    placeholder="Nhập lý do từ chối hoặc nội dung yêu cầu sửa (bắt buộc khi bấm 'Yêu cầu sửa đổi')..."
-                    value={moderatorNote}
-                    onChange={e => setModeratorNote(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none text-sm h-32 resize-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  />
+              <div className="max-h-[calc(100vh-300px)] overflow-y-auto px-5 py-5">
+                <div className="space-y-5">
+                  <section className="app-panel-soft px-4 py-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                      <div className="min-w-0">
+                        <p className="app-overline">{copy.statusQuickTitle}</p>
+                        <p className="mt-2 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{fillText(copy.currentStatus, { status: statusLabel(selectedJob.status as JobStatus) })}</p>
+                      </div>
+                      <select
+                        className="app-control lg:ml-auto lg:max-w-[280px]"
+                        value=""
+                        onChange={(event) => {
+                          const newStatus = event.target.value as JobStatus;
+                          if (!newStatus) return;
+                          handleStatusOverride(newStatus);
+                          event.target.value = '';
+                        }}
+                      >
+                        <option value="">{copy.changeTo}</option>
+                        {MODERATOR_STATUS_OPTIONS.filter((status) => status !== selectedJob.status).map((status) => (
+                          <option key={status} value={status}>
+                            {statusLabel(status)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </section>
+
+                  <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {[
+                      { label: copy.summary.material, value: `${selectedJob.materialType} / ${selectedJob.color}` },
+                      { label: copy.summary.estimatedGrams, value: `${selectedJob.estimatedGrams || 0}g` },
+                      { label: copy.summary.materialSource, value: materialSourceLabel(selectedJob.materialSource) },
+                      { label: copy.summary.estimatedTime, value: selectedJob.estimatedTime || shared.noDuration },
+                    ].map((item) => (
+                      <article key={item.label} className="app-panel-soft app-hover-box px-4 py-4">
+                        <p className="app-overline">{item.label}</p>
+                        <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{item.value}</p>
+                      </article>
+                    ))}
+                  </section>
+
+                  {renderQuoteCard()}
+                  {renderActionBoard()}
+
+                  <section className="app-panel px-5 py-5">
+                    <p className="app-overline">{copy.moderatorNoteEyebrow}</p>
+                    <textarea
+                      value={moderatorNote}
+                      onChange={(event) => setModeratorNote(event.target.value)}
+                      placeholder={copy.moderatorNotePlaceholder}
+                      className="app-control mt-4 min-h-[160px] resize-none py-4"
+                    />
+                  </section>
                 </div>
               </div>
             </>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 };

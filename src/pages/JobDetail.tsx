@@ -107,7 +107,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
       </div>
 
       {job.status === JobStatus.NEEDS_REVISION && (
-        <div className="rounded-2xl border-2 border-orange-300 p-4 dark:border-orange-700 sm:p-5" style={{ background: 'linear-gradient(135deg, #fff7ed, #ffedd5)' }}>
+        <div className="app-hover-box rounded-2xl border-2 border-orange-300 p-4 dark:border-orange-700 sm:p-5" style={{ background: 'linear-gradient(135deg, #fff7ed, #ffedd5)' }}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
             <div className="shrink-0 rounded-xl bg-orange-100 p-2">
               <PenLine size={20} className="text-orange-600" />
@@ -164,7 +164,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
         <div className="space-y-6 lg:col-span-2 lg:space-y-8">
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:p-8">
+              <div className="app-hover-box rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:p-8">
                 <h3 className="mb-6 text-lg font-bold text-slate-900 dark:text-white">Thông tin chi tiết</h3>
                 <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2 lg:gap-x-12 lg:gap-y-8">
                   <div className="space-y-1">
@@ -194,7 +194,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50 sm:p-6 lg:p-8">
+              <div className="app-hover-box rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50 sm:p-6 lg:p-8">
                 <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Ghi chú in ấn</h3>
                 <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                   {job.description || 'Không có ghi chú.'}
@@ -204,7 +204,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
           )}
 
           {activeTab === 'timeline' && (
-            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:p-8">
+            <div className="app-hover-box rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:p-8">
               <div className="relative space-y-6 sm:space-y-8">
                 <div className="absolute bottom-0 left-[15px] top-0 w-0.5 bg-slate-100 dark:bg-slate-800"></div>
                 {timeline.map((item, i) => (
@@ -229,7 +229,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
 
           {activeTab === 'payment' && (
             <div className="space-y-6">
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:p-8">
+              <div className="app-hover-box rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:p-8">
                 <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Chi tiết thanh toán</h3>
                   <span className={cn(
@@ -256,7 +256,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-blue-100 bg-blue-50 p-4 dark:border-blue-900/30 dark:bg-blue-900/20 sm:p-6">
+              <div className="app-hover-box rounded-3xl border border-blue-100 bg-blue-50 p-4 dark:border-blue-900/30 dark:bg-blue-900/20 sm:p-6">
                 <h4 className="mb-2 text-sm font-bold text-blue-900 dark:text-blue-400">Hướng dẫn thanh toán</h4>
                 <p className="mb-4 text-xs leading-relaxed text-blue-800 dark:text-blue-500">
                   Vui lòng thanh toán tại bàn trực của Lab hoặc chuyển khoản qua mã QR bên dưới với nội dung: <strong>{job.id} - {job.userName}</strong>
@@ -270,9 +270,9 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+          <div className="app-hover-box rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
             <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">File đính kèm</h4>
-            <div className="group flex cursor-pointer items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:border-blue-300 dark:border-slate-800 dark:bg-slate-800/50">
+            <div className="app-hover-box group flex cursor-pointer items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:border-blue-300 dark:border-slate-800 dark:bg-slate-800/50">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-blue-600 shadow-sm dark:bg-slate-900">
                 <FileText size={20} />
               </div>
@@ -284,7 +284,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+          <div className="app-hover-box rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
             <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">Moderator phụ trách</h4>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400">
@@ -298,7 +298,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
           </div>
 
           {job.rejectionReason && (
-            <div className="rounded-3xl border border-red-100 bg-red-50 p-4 dark:border-red-900/30 dark:bg-red-900/20 sm:p-6">
+            <div className="app-hover-box rounded-3xl border border-red-100 bg-red-50 p-4 dark:border-red-900/30 dark:bg-red-900/20 sm:p-6">
               <div className="mb-2 flex items-center gap-2 text-red-600">
                 <AlertCircle size={18} />
                 <h4 className="text-sm font-bold">Lý do từ chối</h4>

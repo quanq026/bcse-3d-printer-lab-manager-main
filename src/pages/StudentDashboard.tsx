@@ -1,25 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Plus,
-  Clock,
-  Zap,
-  CreditCard,
-  ArrowRight,
-  FileText,
-  MessageCircle,
-  History,
-  Loader2,
-  CheckCircle2,
   AlertCircle,
-  Timer,
+  ArrowRight,
+  CheckCircle2,
+  FileText,
+  Loader2,
   PenLine,
   Search,
+  Timer,
 } from 'lucide-react';
-import { StatusChip } from '../components/StatusChip';
-import { Role } from '../types';
-import { cn } from '../lib/utils';
-import { api } from '../lib/api';
+import { AppIcon } from '../components/AppIcon';
 import { useLang } from '../contexts/LanguageContext';
+import { api } from '../lib/api';
+import { fillText, getUiText } from '../lib/uiText';
+import { cn } from '../lib/utils';
+import { StatusChip } from '../components/StatusChip';
+import { JobStatus, Role } from '../types';
 
 interface StudentDashboardProps {
   onNewBooking: () => void;
@@ -30,9 +26,62 @@ interface StudentDashboardProps {
   activePage?: string;
 }
 
+const CLOSED_STATUSES = [JobStatus.DONE, JobStatus.CANCELLED, JobStatus.REJECTED];
+const FLOW_STEPS = [JobStatus.SUBMITTED, JobStatus.APPROVED, JobStatus.PRINTING, JobStatus.DONE];
+const HISTORY_FILTERS = [
+  { value: 'all', label: 'Tất cả trạng thái' },
+  { value: JobStatus.SUBMITTED, label: 'Đã gửi' },
+  { value: JobStatus.APPROVED, label: 'Đã duyệt' },
+  { value: JobStatus.PRINTING, label: 'Đang in' },
+  { value: JobStatus.DONE, label: 'Hoàn thành' },
+  { value: JobStatus.REJECTED, label: 'Từ chối' },
+  { value: JobStatus.CANCELLED, label: 'Đã hủy' },
+  { value: JobStatus.NEEDS_REVISION, label: 'Cần chỉnh sửa' },
+];
+
+function formatDate(value?: string) {
+  if (!value) return 'Chưa có mốc thời gian';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed);
+}
+
+function formatDateWithLocale(value: string | undefined, locale: string, fallback: string) {
+  if (!value) return fallback;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed);
+}
+
+function getTrackerIcon(status: string) {
+  if (status === JobStatus.PRINTING) {
+    return <Timer size={14} className="text-emerald-600 dark:text-emerald-300" />;
+  }
+
+  if (status === JobStatus.APPROVED || status === JobStatus.SCHEDULED || status === JobStatus.DONE) {
+    return <CheckCircle2 size={14} className="text-sky-600 dark:text-sky-300" />;
+  }
+
+  return <AlertCircle size={14} className="text-[var(--landing-accent)]" />;
+}
+
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking, onSelectJob, onPageChange, role, currentUser, activePage }) => {
   const isHistoryPage = activePage === 'history';
-  const { t } = useLang();
+  const { lang, t } = useLang();
+  const ui = getUiText(lang);
+  const shared = ui.shared;
+  const adminCopy = ui.adminOverview;
+  const sidebarCopy = ui.sidebar.nav;
+  const isOpsRole = role !== Role.STUDENT;
+  const locale = lang === 'JP' ? 'en-US' : 'vi-VN';
   const [jobs, setJobs] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [dailyStats, setDailyStats] = useState<any[]>([]);
@@ -41,486 +90,1007 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
   const [historyFilter, setHistoryFilter] = useState('all');
 
   useEffect(() => {
+    let isMounted = true;
+
     api.getJobs()
-      .then(setJobs)
+      .then((data) => {
+        if (isMounted) setJobs(data);
+      })
       .catch(console.error)
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
 
     if (role !== Role.STUDENT) {
-      api.getStats().then(setStats).catch(() => { });
-      api.getDailyStats().then(setDailyStats).catch(() => { });
+      api.getStats().then((data) => {
+        if (isMounted) setStats(data);
+      }).catch(() => { });
+      api.getDailyStats().then((data) => {
+        if (isMounted) setDailyStats(data);
+      }).catch(() => { });
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [role]);
 
-  const myJobs = role === Role.STUDENT
-    ? jobs.filter(j => j.userId === currentUser?.id)
-    : jobs;
+  const myJobs = useMemo(() => {
+    const scopedJobs = role === Role.STUDENT
+      ? jobs.filter((job) => job.userId === currentUser?.id)
+      : jobs;
 
-  const kpiCards = [
+    return [...scopedJobs].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }, [currentUser?.id, jobs, role]);
+
+  const filteredHistoryJobs = useMemo(() => myJobs
+    .filter((job) => historyFilter === 'all' || job.status === historyFilter)
+    .filter((job) => {
+      if (!historySearch) return true;
+      const needle = historySearch.toLowerCase();
+      return job.jobName?.toLowerCase().includes(needle) || job.id?.toLowerCase().includes(needle);
+    }), [historyFilter, historySearch, myJobs]);
+
+  const recentJobs = myJobs.slice(0, 10);
+  const activeJobs = myJobs.filter((job) => !CLOSED_STATUSES.includes(job.status as JobStatus));
+  const needsRevisionJobs = myJobs.filter((job) => job.status === JobStatus.NEEDS_REVISION);
+  const pendingJobs = myJobs.filter((job) => [JobStatus.SUBMITTED, JobStatus.PENDING_REVIEW, JobStatus.APPROVED, JobStatus.SCHEDULED].includes(job.status as JobStatus));
+  const printingJobs = myJobs.filter((job) => job.status === JobStatus.PRINTING);
+  const doneJobs = myJobs.filter((job) => job.status === JobStatus.DONE);
+  const maxDailyTotal = Math.max(...dailyStats.map((day: any) => day.approved + day.done + day.rejected + day.needsRevision), 1);
+
+  const opsHistoryFilters = [
+    { value: 'all', label: adminCopy.historyFilters.all },
+    { value: JobStatus.SUBMITTED, label: shared.jobStatuses[JobStatus.SUBMITTED] },
+    { value: JobStatus.APPROVED, label: shared.jobStatuses[JobStatus.APPROVED] },
+    { value: JobStatus.PRINTING, label: shared.jobStatuses[JobStatus.PRINTING] },
+    { value: JobStatus.DONE, label: shared.jobStatuses[JobStatus.DONE] },
+    { value: JobStatus.REJECTED, label: shared.jobStatuses[JobStatus.REJECTED] },
+    { value: JobStatus.CANCELLED, label: shared.jobStatuses[JobStatus.CANCELLED] },
+    { value: JobStatus.NEEDS_REVISION, label: shared.jobStatuses[JobStatus.NEEDS_REVISION] },
+  ];
+
+  const opsPrimaryAction = {
+    title: adminCopy.actionsTitle,
+    description: adminCopy.actionsDesc,
+    label: sidebarCopy.queue,
+    icon: 'solar:checklist-bold',
+    onClick: () => onPageChange('queue'),
+  };
+
+  const opsQuickActions = role === Role.MODERATOR
+    ? [
+      { id: 'queue', label: sidebarCopy.queue, icon: 'solar:checklist-bold' },
+      { id: 'queue-status', label: adminCopy.quickQueueStatus, icon: 'solar:sort-by-time-bold' },
+      { id: 'chat', label: sidebarCopy.chat, icon: 'solar:chat-round-dots-bold' },
+      { id: 'history', label: sidebarCopy.history, icon: 'solar:history-bold' },
+    ]
+    : [
+      { id: 'queue', label: sidebarCopy.queue, icon: 'solar:checklist-bold' },
+      { id: 'printers', label: sidebarCopy.printers, icon: 'solar:printer-2-bold' },
+      { id: 'inventory', label: sidebarCopy.inventory, icon: 'solar:box-bold' },
+      { id: 'chat', label: sidebarCopy.chat, icon: 'solar:chat-round-dots-bold' },
+    ];
+
+  const opsKpiCards = [
     {
-      label: t('pendingJobs'),
-      value: loading ? '...' : myJobs.filter(j => ['Submitted', 'Pending review', 'Approved', 'Scheduled'].includes(j.status)).length.toString(),
-      icon: Clock,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50 dark:bg-blue-900/30',
+      label: adminCopy.metrics.pending.label,
+      value: loading ? '...' : pendingJobs.length.toString(),
+      note: adminCopy.metrics.pending.note,
+      icon: 'solar:clock-circle-bold',
+      accent: 'text-sky-700 bg-sky-100/80 dark:text-sky-100 dark:bg-sky-300/10',
     },
     {
-      label: t('totalJobs'),
+      label: adminCopy.metrics.total.label,
       value: loading ? '...' : myJobs.length.toString(),
-      icon: Zap,
-      color: 'text-emerald-600',
-      bg: 'bg-emerald-50 dark:bg-emerald-900/30',
+      note: adminCopy.metrics.total.note,
+      icon: 'solar:widget-3-bold',
+      accent: 'text-[var(--landing-accent)] bg-[rgba(239,125,87,0.12)] dark:text-[#ffd7cc] dark:bg-[rgba(239,125,87,0.12)]',
     },
     {
-      label: t('printing'),
-      value: loading ? '...' : myJobs.filter(j => j.status === 'Printing').length.toString(),
-      icon: FileText,
-      color: 'text-indigo-600',
-      bg: 'bg-indigo-50 dark:bg-indigo-900/30',
+      label: adminCopy.metrics.printing.label,
+      value: loading ? '...' : printingJobs.length.toString(),
+      note: adminCopy.metrics.printing.note,
+      icon: 'solar:printer-2-bold',
+      accent: 'text-emerald-700 bg-emerald-100/80 dark:text-emerald-100 dark:bg-emerald-300/10',
     },
     {
-      label: t('done'),
-      value: loading ? '...' : myJobs.filter(j => j.status === 'Done').length.toString(),
-      icon: CreditCard,
-      color: 'text-amber-600',
-      bg: 'bg-amber-50 dark:bg-amber-900/30',
+      label: adminCopy.metrics.done.label,
+      value: loading ? '...' : doneJobs.length.toString(),
+      note: adminCopy.metrics.done.note,
+      icon: 'solar:check-square-bold',
+      accent: 'text-amber-700 bg-amber-100/80 dark:text-amber-100 dark:bg-amber-300/10',
     },
   ];
 
-  const needsRevisionJobs = myJobs.filter(j => j.status === 'Needs Revision');
-
-  return (
-    <div className="space-y-8">
-      {/* Revision Alert */}
-      {!isHistoryPage && needsRevisionJobs.length > 0 && (
-        <div className="p-4 rounded-2xl border-2 border-orange-300 flex items-start gap-3" style={{ background: 'linear-gradient(135deg, #fff7ed, #ffedd5)' }}>
-          <PenLine size={20} className="text-orange-600 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-bold text-orange-900 text-sm">Có {needsRevisionJobs.length} yêu cầu cần sửa đổi!</h4>
-            <p className="text-xs text-orange-700 mt-0.5">
-              Moderator đã yêu cầu bạn sửa: {needsRevisionJobs.map(j => j.jobName).join(', ')}. Bấm vào đơn để xem chi tiết và gửi lại.
-            </p>
+  const renderOpsJobCard = (job: any) => (
+    <button
+      key={job.id}
+      onClick={() => onSelectJob(job.id)}
+      className="app-hover-box group w-full border-b border-[rgba(30,23,19,0.06)] p-4 text-left transition-colors hover:bg-[rgba(239,125,87,0.05)] last:border-b-0 dark:border-white/6 dark:hover:bg-white/4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="app-overline">#{job.id}</p>
+          <p className="mt-2 truncate text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.jobName}</p>
+          <div className="mt-3 grid gap-1 text-xs text-slate-500 dark:text-[var(--landing-muted)]">
+            <p>{job.printerName || shared.notAssigned}</p>
+            <p>{job.materialType} / {job.color}</p>
+            <p>{job.slotTime || shared.waitingApproval}</p>
           </div>
         </div>
-      )}
+        <div className="flex shrink-0 flex-col items-end gap-3">
+          <StatusChip status={job.status as JobStatus} />
+          <span className="text-xs font-semibold text-slate-400 transition-colors group-hover:text-[var(--landing-accent)] dark:text-white/40">{adminCopy.table.open}</span>
+        </div>
+      </div>
+    </button>
+  );
 
-      {/* KPI Cards — hide on history page */}
-      {!isHistoryPage && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {kpiCards.map((stat, i) => (
-            <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <div className={cn("p-2.5 rounded-xl", stat.bg)}>
-                  <stat.icon size={20} className={stat.color} />
+  const renderOpsJobsTable = (tableJobs: any[]) => (
+    <div className="hidden overflow-x-auto md:block">
+      <table className="app-table">
+        <thead>
+          <tr>
+            <th>{adminCopy.table.request}</th>
+            <th>{adminCopy.table.printer}</th>
+            <th>{adminCopy.table.material}</th>
+            <th>{adminCopy.table.status}</th>
+            <th className="text-right">{adminCopy.table.open}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tableJobs.map((job) => (
+            <tr key={job.id} className="cursor-pointer" onClick={() => onSelectJob(job.id)}>
+              <td className="px-6 py-5 align-top">
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.jobName}</span>
+                  <span className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-400 dark:text-white/38">#{job.id}</span>
                 </div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lab</span>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{stat.value}</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{stat.label}</p>
-            </div>
+              </td>
+              <td className="px-6 py-5 align-top">
+                <div className="flex flex-col text-sm text-slate-600 dark:text-[var(--landing-muted)]">
+                  <span>{job.printerName || shared.notAssigned}</span>
+                  <span className="mt-1 text-xs text-slate-400 dark:text-white/40">{job.slotTime || shared.waitingApproval}</span>
+                </div>
+              </td>
+              <td className="px-6 py-5 align-top">
+                <div className="flex flex-col text-sm text-slate-600 dark:text-[var(--landing-muted)]">
+                  <span>{job.materialType} / {job.color}</span>
+                  <span className="mt-1 text-xs text-slate-400 dark:text-white/40">{fillText(shared.createdOn, { date: formatDate(job.createdAt) })}</span>
+                </div>
+              </td>
+              <td className="px-6 py-5 align-top">
+                <StatusChip status={job.status as JobStatus} />
+              </td>
+              <td className="px-6 py-5 text-right align-top">
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelectJob(job.id);
+                  }}
+                  className="app-icon-button inline-flex h-10 w-10 items-center justify-center"
+                  aria-label={fillText(shared.openItem, { name: job.jobName })}
+                >
+                  <ArrowRight size={16} />
+                </button>
+              </td>
+            </tr>
           ))}
-        </div>
-      )}
+        </tbody>
+      </table>
+    </div>
+  );
 
-      {/* ── History Page: full-width job list with search/filter ── */}
-      {isHistoryPage ? (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t('history')}</h3>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="relative w-full sm:w-auto">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm..."
-                  value={historySearch}
-                  onChange={e => setHistorySearch(e.target.value)}
-                  className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-56"
-                />
+  if (isOpsRole && isHistoryPage) {
+    return (
+      <div className="space-y-6">
+        <section className="app-panel grid gap-5 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8 lg:py-8">
+          <div>
+            <p className="app-eyebrow">{adminCopy.historyEyebrow}</p>
+            <h2 className="app-display-sm mt-3">{adminCopy.historyTitle}</h2>
+            <p className="app-subtle-copy mt-4 max-w-2xl text-sm sm:text-base">{adminCopy.historyDesc}</p>
+          </div>
+          <div className="grid gap-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/35" size={16} />
+              <input
+                type="text"
+                placeholder={adminCopy.historySearchPlaceholder}
+                value={historySearch}
+                onChange={(event) => setHistorySearch(event.target.value)}
+                className="app-control pl-10"
+              />
+            </div>
+            <select
+              value={historyFilter}
+              onChange={(event) => setHistoryFilter(event.target.value)}
+              className="app-control"
+            >
+              {opsHistoryFilters.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <div className="app-panel-soft flex items-center justify-between px-4 py-3 text-sm text-slate-600 dark:text-[var(--landing-muted)]">
+              <span>{adminCopy.historyMatches}</span>
+              <span className="font-semibold text-slate-900 dark:text-[var(--landing-text)]">{loading ? '...' : filteredHistoryJobs.length}</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="app-panel overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 px-6 py-16 text-slate-500 dark:text-[var(--landing-muted)]">
+              <Loader2 size={22} className="animate-spin" />
+              <span className="text-sm">{t('loadingData')}</span>
+            </div>
+          ) : filteredHistoryJobs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+              <div className="flex h-16 w-16 items-center justify-center border border-[rgba(30,23,19,0.08)] bg-white/50 text-slate-400 dark:border-white/8 dark:bg-white/4 dark:text-white/38">
+                <FileText size={28} strokeWidth={1.4} />
               </div>
-              <select
-                value={historyFilter}
-                onChange={e => setHistoryFilter(e.target.value)}
-                className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none w-full sm:w-auto"
+              <div>
+                <p className="text-base font-semibold text-slate-900 dark:text-[var(--landing-text)]">{adminCopy.historyEmptyTitle}</p>
+                <p className="mt-2 max-w-md text-sm text-slate-500 dark:text-[var(--landing-muted)]">{adminCopy.historyEmptyDesc}</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="md:hidden">
+                {filteredHistoryJobs.map(renderOpsJobCard)}
+              </div>
+              {renderOpsJobsTable(filteredHistoryJobs)}
+            </>
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  if (isOpsRole) {
+    return (
+      <div className="space-y-6">
+        <section className="app-panel grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] lg:px-8 lg:py-8">
+          <div>
+            <p className="app-eyebrow">{adminCopy.heroEyebrow}</p>
+            <h2 className="app-display-sm mt-3">{adminCopy.heroTitle}</h2>
+            <p className="app-subtle-copy mt-4 max-w-2xl text-sm sm:text-base">{adminCopy.heroDesc}</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                onClick={() => onPageChange('queue')}
+                className="app-primary-button inline-flex min-w-[220px] items-center justify-center gap-2 px-5 text-sm font-black uppercase tracking-[0.16em]"
               >
-                <option value="all">Tất cả</option>
-                <option value="Submitted">Đã gửi</option>
-                <option value="Approved">Đã duyệt</option>
-                <option value="Printing">Đang in</option>
-                <option value="Done">Hoàn thành</option>
-                <option value="Rejected">Từ chối</option>
-                <option value="Cancelled">Đã hủy</option>
-                <option value="Needs Revision">Cần sửa</option>
-              </select>
+                <AppIcon icon="solar:checklist-bold" size={18} />
+                {sidebarCopy.queue}
+              </button>
+              <button
+                onClick={() => onPageChange('history')}
+                className="app-secondary-button inline-flex min-h-[50px] items-center justify-center gap-2 px-5 text-sm font-semibold"
+              >
+                <AppIcon icon="solar:history-bold" size={18} />
+                {adminCopy.viewHistory}
+              </button>
             </div>
           </div>
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="app-panel-soft app-hover-box px-4 py-4">
+              <p className="app-overline">{adminCopy.userCardTitle}</p>
+              <p className="mt-3 text-lg font-semibold text-slate-900 dark:text-[var(--landing-text)]">{currentUser?.fullName || shared.systemUser}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{currentUser?.email || role}</p>
+            </div>
+            <div className="app-panel-soft app-hover-box px-4 py-4">
+              <p className="app-overline">{adminCopy.openRequestsTitle}</p>
+              <p className="app-stat-number mt-3 text-slate-900 dark:text-[var(--landing-text)]">{loading ? '...' : activeJobs.length}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{adminCopy.openRequestsNote}</p>
+            </div>
+            <div className="app-panel-soft app-hover-box px-4 py-4">
+              <p className="app-overline">{adminCopy.attentionTitle}</p>
+              <p className="app-stat-number mt-3 text-slate-900 dark:text-[var(--landing-text)]">{loading ? '...' : needsRevisionJobs.length}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{adminCopy.attentionNote}</p>
+            </div>
+          </div>
+        </section>
 
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-            {loading ? (
-              <div className="flex items-center justify-center py-16 text-slate-400">
-                <Loader2 size={24} className="animate-spin mr-2" />
-                <span className="text-sm">{t('loadingData')}</span>
+        {needsRevisionJobs.length > 0 && (
+          <section className="app-panel border-[rgba(239,125,87,0.28)] bg-[linear-gradient(135deg,rgba(255,247,237,0.92),rgba(255,238,222,0.92))] px-6 py-5 dark:border-[rgba(239,125,87,0.18)] dark:bg-[linear-gradient(135deg,rgba(239,125,87,0.12),rgba(240,179,91,0.06))]">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center bg-[rgba(239,125,87,0.16)] text-[var(--landing-accent)]">
+                <PenLine size={18} />
               </div>
-            ) : (() => {
-              const filtered = myJobs
-                .filter(j => historyFilter === 'all' || j.status === historyFilter)
-                .filter(j => !historySearch || j.jobName.toLowerCase().includes(historySearch.toLowerCase()) || j.id.toLowerCase().includes(historySearch.toLowerCase()));
-              return filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
-                  <History size={40} strokeWidth={1} />
-                  <p className="text-sm font-medium">Không có yêu cầu nào</p>
-                </div>
-              ) : (
-                <>
-                  <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
-                    {filtered.map((job) => (
-                      <button
-                        key={job.id}
-                        onClick={() => onSelectJob(job.id)}
-                        className="w-full p-4 text-left space-y-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{job.jobName}</p>
-                            <p className="text-[10px] text-slate-400 font-medium uppercase mt-1">{job.id}</p>
-                          </div>
-                          <StatusChip status={job.status as any} />
-                        </div>
-                        <div className="grid grid-cols-1 gap-2 text-xs">
-                          <div>
-                            <span className="text-slate-400">{t('printerName')}: </span>
-                            <span className="text-slate-600 dark:text-slate-300">{job.printerName || t('notAssigned')}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400">{t('materialType')}: </span>
-                            <span className="text-slate-600 dark:text-slate-300">{job.materialType} ({job.color})</span>
-                          </div>
-                          <div className="text-slate-400">{job.slotTime || t('waitingApproval')}</div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Job</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{t('printerName')}</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{t('materialType')}</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {filtered.map((job) => (
-                        <tr key={job.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer" onClick={() => onSelectJob(job.id)}>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-bold text-slate-900 dark:text-white">{job.jobName}</span>
-                              <span className="text-[10px] text-slate-400 font-medium uppercase">{job.id}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col">
-                              <span className="text-sm text-slate-600 dark:text-slate-300">{job.printerName || t('notAssigned')}</span>
-                              <span className="text-[10px] text-slate-400">{job.slotTime || t('waitingApproval')}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                              <span className="text-sm text-slate-600 dark:text-slate-300">{job.materialType} ({job.color})</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <StatusChip status={job.status as any} />
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onSelectJob(job.id); }}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
-                            >
-                              <ArrowRight size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    </table>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      ) : (
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Jobs Table */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                {role === Role.STUDENT ? t('myJobs') : t('allJobs')}
-              </h3>
+              <div>
+                <p className="app-eyebrow">{adminCopy.needsRevisionEyebrow}</p>
+                <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-[var(--landing-text)]">{fillText(adminCopy.needsRevisionTitle, { count: needsRevisionJobs.length })}</h3>
+                <p className="mt-2 text-sm text-slate-600 dark:text-[var(--landing-muted)]">{needsRevisionJobs.map((job) => job.jobName).join(', ')}</p>
+              </div>
             </div>
+          </section>
+        )}
 
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {opsKpiCards.map((card, index) => (
+            <article key={card.label} className="app-panel app-hover-box px-5 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className={cn('flex h-12 w-12 items-center justify-center', card.accent)}>
+                  <AppIcon icon={card.icon} size={20} />
+                </div>
+                <span className="app-overline">0{index + 1}</span>
+              </div>
+              <p className="app-stat-number mt-5 text-slate-900 dark:text-[var(--landing-text)]">{card.value}</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{card.label}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{card.note}</p>
+            </article>
+          ))}
+        </section>
+
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.3fr)_360px]">
+          <div className="space-y-6">
+            <div className="app-panel overflow-hidden">
+              <div className="flex items-center justify-between gap-4 border-b border-[rgba(30,23,19,0.08)] px-6 py-5 dark:border-white/8">
+                <div>
+                  <p className="app-overline">{adminCopy.processingEyebrow}</p>
+                  <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-[var(--landing-text)]">{adminCopy.processingTitle}</h3>
+                </div>
+                <button
+                  onClick={() => onPageChange('history')}
+                  className="text-sm font-semibold text-[var(--landing-accent)] transition-colors hover:text-[var(--landing-accent-strong)]"
+                >
+                  {adminCopy.viewArchive}
+                </button>
+              </div>
               {loading ? (
-                <div className="flex items-center justify-center py-16 text-slate-400">
-                  <Loader2 size={24} className="animate-spin mr-2" />
+                <div className="flex items-center justify-center gap-2 px-6 py-16 text-slate-500 dark:text-[var(--landing-muted)]">
+                  <Loader2 size={22} className="animate-spin" />
                   <span className="text-sm">{t('loadingData')}</span>
                 </div>
-              ) : myJobs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
-                  <FileText size={40} strokeWidth={1} />
-                  <p className="text-sm font-medium">{t('noJobs')}</p>
-                  <button
-                    onClick={onNewBooking}
-                    className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-all"
-                  >
-                    {t('newRequest')}
-                  </button>
+              ) : recentJobs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center border border-[rgba(30,23,19,0.08)] bg-white/50 text-slate-400 dark:border-white/8 dark:bg-white/4 dark:text-white/38">
+                    <FileText size={28} strokeWidth={1.4} />
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold text-slate-900 dark:text-[var(--landing-text)]">{t('noJobs')}</p>
+                  </div>
                 </div>
               ) : (
                 <>
-                  <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
-                    {myJobs.slice(0, 10).map((job) => (
-                      <button
-                        key={job.id}
-                        onClick={() => onSelectJob(job.id)}
-                        className="w-full p-4 text-left space-y-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{job.jobName}</p>
-                            <p className="text-[10px] text-slate-400 font-medium uppercase mt-1">{job.id}</p>
-                          </div>
-                          <StatusChip status={job.status as any} />
-                        </div>
-                        <div className="grid grid-cols-1 gap-2 text-xs">
-                          <div>
-                            <span className="text-slate-400">{t('printerName')}: </span>
-                            <span className="text-slate-600 dark:text-slate-300">{job.printerName || t('notAssigned')}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400">{t('materialType')}: </span>
-                            <span className="text-slate-600 dark:text-slate-300">{job.materialType} ({job.color})</span>
-                          </div>
-                          <div className="text-slate-400">{job.slotTime || t('waitingApproval')}</div>
-                        </div>
-                      </button>
-                    ))}
+                  <div className="md:hidden">
+                    {recentJobs.map(renderOpsJobCard)}
                   </div>
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Job</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{t('printerName')}</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{t('materialType')}</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {myJobs.slice(0, 10).map((job) => (
-                        <tr key={job.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-bold text-slate-900 dark:text-white">{job.jobName}</span>
-                              <span className="text-[10px] text-slate-400 font-medium uppercase">{job.id}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col">
-                              <span className="text-sm text-slate-600 dark:text-slate-300">{job.printerName || t('notAssigned')}</span>
-                              <span className="text-[10px] text-slate-400">{job.slotTime || t('waitingApproval')}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                              <span className="text-sm text-slate-600 dark:text-slate-300">{job.materialType} ({job.color})</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <StatusChip status={job.status as any} />
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <button
-                              onClick={() => onSelectJob(job.id)}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
-                            >
-                              <ArrowRight size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    </table>
-                  </div>
+                  {renderOpsJobsTable(recentJobs)}
                 </>
               )}
             </div>
           </div>
 
-          {/* Right Sidebar */}
-          <div className="space-y-6">
-            <div className="rounded-2xl p-6 text-white shadow-lg shadow-amber-200 dark:shadow-amber-500/10 relative overflow-hidden">
-              {/* Light mode background */}
-              <div className="absolute inset-0 dark:hidden rounded-2xl" style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }} />
-              {/* Dark mode glassmorphism */}
-              <div className="absolute inset-0 hidden dark:block rounded-2xl" style={{ background: 'rgba(217,119,6,0.12)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(251,191,36,0.25)' }} />
-              {/* Glow orbs */}
-              <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-2xl -mr-16 -mt-16 opacity-40 dark:opacity-20" style={{ background: '#f59e0b' }} />
-              <div className="absolute bottom-0 left-0 w-20 h-20 rounded-full blur-2xl -ml-8 -mb-8 opacity-30 dark:opacity-15" style={{ background: '#92400e' }} />
-              <h3 className="text-lg font-bold mb-2 relative z-10">{t('readyToPrint')}</h3>
-              <p className="text-amber-100 dark:text-amber-200 text-sm mb-6 relative z-10">{t('readyToPrintDesc')}</p>
+          <aside className="space-y-5">
+            <section className="app-hover-box overflow-hidden border border-[rgba(20,33,43,0.08)] bg-[linear-gradient(145deg,#172733_0%,#10202b_58%,#ef7d57_170%)] px-6 py-6 text-white shadow-[0_18px_40px_rgba(14,25,34,0.14)]">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/55">{adminCopy.actionsEyebrow}</p>
+              <h3 className="app-display-font mt-3 text-[2rem] leading-none">{opsPrimaryAction.title}</h3>
+              <p className="mt-4 text-sm leading-7 text-white/74">{opsPrimaryAction.description}</p>
               <button
-                onClick={onNewBooking}
-                className="w-full py-3 font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 relative z-10 bg-white text-amber-700 hover:bg-amber-50 dark:bg-amber-400/20 dark:text-amber-200 dark:hover:bg-amber-400/30 dark:border dark:border-amber-400/40"
+                onClick={opsPrimaryAction.onClick}
+                className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 bg-[rgba(255,248,240,0.94)] px-4 text-sm font-black uppercase tracking-[0.16em] text-[var(--landing-bg)] transition-colors hover:bg-white"
               >
-                <Plus size={20} />
-                {t('newRequest')}
+                <AppIcon icon={opsPrimaryAction.icon} size={18} />
+                {opsPrimaryAction.label}
               </button>
-            </div>
+            </section>
 
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 uppercase tracking-wider">{t('quickActions')}</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => onPageChange('booking')}
-                  className="flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 border border-transparent transition-all group"
-                >
-                  <Plus className="text-slate-400 group-hover:text-blue-600 mb-2" size={20} />
-                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 group-hover:text-blue-600">{t('booking')}</span>
-                </button>
-                <button
-                  onClick={() => onPageChange('history')}
-                  className="flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 border border-transparent transition-all group"
-                >
-                  <History className="text-slate-400 group-hover:text-blue-600 mb-2" size={20} />
-                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 group-hover:text-blue-600">{t('history')}</span>
-                </button>
-                <button
-                  onClick={() => onPageChange('chat')}
-                  className="flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 border border-transparent transition-all group"
-                >
-                  <MessageCircle className="text-slate-400 group-hover:text-blue-600 mb-2" size={20} />
-                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 group-hover:text-blue-600">{t('chat')}</span>
-                </button>
-                <button
-                  onClick={() => onPageChange('pricing')}
-                  className="flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-200 border border-transparent transition-all group"
-                >
-                  <CreditCard className="text-slate-400 group-hover:text-amber-600 mb-2" size={20} />
-                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 group-hover:text-amber-600">Bảng giá</span>
-                </button>
+            <section className="app-panel px-5 py-5">
+              <p className="app-overline">{adminCopy.shortcutsEyebrow}</p>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                {opsQuickActions.map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => onPageChange(action.id)}
+                    className="app-panel-soft app-hover-box flex min-h-[104px] flex-col items-center justify-center gap-3 px-4 text-center transition-colors hover:border-[rgba(239,125,87,0.22)] hover:bg-[rgba(239,125,87,0.08)] dark:hover:bg-[rgba(239,125,87,0.1)]"
+                  >
+                    <AppIcon icon={action.icon} size={20} className="text-[var(--landing-accent)]" />
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-700 dark:text-[var(--landing-text)]">{action.label}</span>
+                  </button>
+                ))}
               </div>
-            </div>
+            </section>
 
-            {/* Active job status tracker */}
-            {myJobs.filter(j => !['Done', 'Cancelled', 'Rejected'].includes(j.status)).length > 0 && (
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-3">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">{t('statusTracking')}</h3>
-                {myJobs.filter(j => !['Done', 'Cancelled', 'Rejected'].includes(j.status)).slice(0, 3).map(job => {
-                  const statusStep = ['Submitted', 'Approved', 'Scheduled', 'Printing'].indexOf(job.status);
-                  const statusIcon = job.status === 'Printing'
-                    ? <Timer size={14} className="text-blue-500 animate-pulse" />
-                    : job.status === 'Approved' || job.status === 'Scheduled'
-                      ? <CheckCircle2 size={14} className="text-emerald-500" />
-                      : <AlertCircle size={14} className="text-amber-500" />;
-                  return (
-                    <div key={job.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate max-w-[140px]">{job.jobName}</span>
-                        <div className="flex items-center gap-1">
-                          {statusIcon}
-                          <StatusChip status={job.status as any} />
+            {activeJobs.length > 0 && (
+              <section className="app-panel px-5 py-5">
+                <p className="app-overline">{adminCopy.trackingEyebrow}</p>
+                <div className="mt-4 space-y-3">
+                  {activeJobs.slice(0, 3).map((job) => {
+                    const stepIndex = Math.max(FLOW_STEPS.indexOf(job.status as JobStatus), 0);
+                    return (
+                      <button
+                        key={job.id}
+                        onClick={() => onSelectJob(job.id)}
+                        className="app-panel-soft app-hover-box block w-full px-4 py-4 text-left transition-colors hover:border-[rgba(239,125,87,0.18)] hover:bg-[rgba(239,125,87,0.08)] dark:hover:bg-[rgba(239,125,87,0.1)]"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.jobName}</p>
+                            <p className="mt-1 text-xs text-slate-400 dark:text-white/40">#{job.id}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {getTrackerIcon(job.status)}
+                            <StatusChip status={job.status as JobStatus} className="min-h-[24px] px-2 py-0.5 text-[9px]" />
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex gap-1">
-                        {['Submitted', 'Approved', 'Printing', 'Done'].map((s, idx) => (
-                          <div
-                            key={s}
-                            className={cn(
-                              'h-1 flex-1 rounded-full transition-all',
-                              idx <= statusStep ? 'bg-blue-500' : 'bg-slate-200 dark:bg-slate-700'
-                            )}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-[10px] text-slate-400">{job.id} · {job.printerName || t('notAssigned')}</p>
-                    </div>
-                  );
-                })}
-                <button
-                  onClick={() => onPageChange('history')}
-                  className="w-full text-xs text-blue-600 font-bold py-1 hover:underline text-center"
-                >
-                  {t('viewAllHistory')}
-                </button>
-              </div>
+                        <div className="mt-4 flex gap-1">
+                          {FLOW_STEPS.map((step, index) => (
+                            <span
+                              key={step}
+                              className={cn(
+                                'h-1.5 flex-1',
+                                index <= stepIndex ? 'bg-[var(--landing-accent)]' : 'bg-slate-200 dark:bg-white/8'
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <p className="mt-3 text-xs text-slate-500 dark:text-[var(--landing-muted)]">{job.printerName || shared.notAssigned}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
             )}
 
             {stats && (
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-3">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">{t('labStats')}</h3>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">{t('totalJobs')}:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{stats.totalJobs}</span>
+              <section className="app-panel px-5 py-5">
+                <p className="app-overline">{adminCopy.labStatsEyebrow}</p>
+                <div className="mt-4 space-y-3 text-sm">
+                  {[
+                    { label: adminCopy.metrics.total.label, value: stats.totalJobs, valueClass: 'text-slate-900 dark:text-[var(--landing-text)]' },
+                    { label: adminCopy.metrics.printing.label, value: stats.printing, valueClass: 'text-emerald-700 dark:text-emerald-200' },
+                    { label: shared.jobStatuses[JobStatus.PENDING_REVIEW], value: stats.pendingReview, valueClass: 'text-[var(--landing-accent)]' },
+                    { label: adminCopy.userCardTitle, value: stats.totalUsers, valueClass: 'text-slate-900 dark:text-[var(--landing-text)]' },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center justify-between border-b border-[rgba(30,23,19,0.06)] pb-3 last:border-b-0 last:pb-0 dark:border-white/6">
+                      <span className="text-slate-500 dark:text-[var(--landing-muted)]">{item.label}</span>
+                      <span className={cn('font-semibold', item.valueClass)}>{item.value}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">{t('printing')}:</span>
-                  <span className="font-bold text-emerald-600">{stats.printing}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">{t('pendingApproval')}:</span>
-                  <span className="font-bold text-amber-600">{stats.pendingReview}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">{t('activeUsers')}:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{stats.totalUsers}</span>
-                </div>
-              </div>
+              </section>
             )}
 
-            {/* Daily Chart (Admin/Mod only) */}
             {dailyStats.length > 0 && (
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4">Thống kê 7 ngày</h3>
-                <div className="flex items-end gap-1.5 h-24">
+              <section className="app-panel px-5 py-5">
+                <p className="app-overline">{adminCopy.sevenDayEyebrow}</p>
+                <div className="mt-4 flex h-32 items-end gap-2">
                   {dailyStats.map((day: any) => {
                     const total = day.approved + day.done + day.rejected + day.needsRevision;
-                    const maxH = 80;
+                    const doneHeight = total ? Math.max((day.done / maxDailyTotal) * 88, day.done ? 6 : 0) : 4;
+                    const approvedHeight = total ? Math.max((day.approved / maxDailyTotal) * 88, day.approved ? 6 : 0) : 0;
+                    const rejectedHeight = day.rejected ? Math.max((day.rejected / maxDailyTotal) * 88, 6) : 0;
+                    const revisionHeight = day.needsRevision ? Math.max((day.needsRevision / maxDailyTotal) * 88, 6) : 0;
                     return (
-                      <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
-                        <div className="w-full flex flex-col justify-end gap-px" style={{ height: maxH }}>
-                          {day.done > 0 && <div className="w-full rounded-sm bg-emerald-500" style={{ height: total ? `${(day.done / Math.max(...dailyStats.map((d: any) => d.approved + d.done + d.rejected + d.needsRevision), 1)) * maxH}px` : '2px' }} title={`Hoàn thành: ${day.done}`} />}
-                          {day.approved > 0 && <div className="w-full rounded-sm bg-indigo-400" style={{ height: total ? `${(day.approved / Math.max(...dailyStats.map((d: any) => d.approved + d.done + d.rejected + d.needsRevision), 1)) * maxH}px` : '2px' }} title={`Duyệt: ${day.approved}`} />}
-                          {day.rejected > 0 && <div className="w-full rounded-sm bg-red-400" style={{ height: `${Math.max(day.rejected * 8, 3)}px` }} title={`Từ chối: ${day.rejected}`} />}
-                          {day.needsRevision > 0 && <div className="w-full rounded-sm bg-orange-400" style={{ height: `${Math.max(day.needsRevision * 8, 3)}px` }} title={`Cần sửa: ${day.needsRevision}`} />}
-                          {total === 0 && <div className="w-full rounded-sm bg-slate-100 dark:bg-slate-800" style={{ height: '3px' }} />}
+                      <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
+                        <div className="flex h-[92px] w-full flex-col justify-end gap-px">
+                          {day.done > 0 && <span className="w-full bg-emerald-500" style={{ height: `${doneHeight}px` }} />}
+                          {day.approved > 0 && <span className="w-full bg-sky-500" style={{ height: `${approvedHeight}px` }} />}
+                          {day.rejected > 0 && <span className="w-full bg-rose-400" style={{ height: `${rejectedHeight}px` }} />}
+                          {day.needsRevision > 0 && <span className="w-full bg-orange-400" style={{ height: `${revisionHeight}px` }} />}
+                          {total === 0 && <span className="h-[4px] w-full bg-slate-200 dark:bg-white/8" />}
                         </div>
-                        <span className="text-[9px] text-slate-400 font-medium">{day.date.slice(5)}</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-white/38">{day.date.slice(5)}</span>
                       </div>
                     );
                   })}
                 </div>
-                <div className="flex items-center gap-3 mt-3 flex-wrap">
-                  {[{ c: 'bg-emerald-500', l: 'Hoàn thành' }, { c: 'bg-indigo-400', l: 'Duyệt' }, { c: 'bg-red-400', l: 'Từ chối' }, { c: 'bg-orange-400', l: 'Cần sửa' }].map(({ c, l }) => (
-                    <div key={l} className="flex items-center gap-1">
-                      <div className={`w-2 h-2 rounded-full ${c}`} />
-                      <span className="text-[10px] text-slate-500">{l}</span>
-                    </div>
+                <div className="mt-4 flex flex-wrap gap-3 text-[11px] text-slate-500 dark:text-[var(--landing-muted)]">
+                  {[
+                    { color: 'bg-emerald-500', label: adminCopy.chartLegend.done },
+                    { color: 'bg-sky-500', label: adminCopy.chartLegend.approved },
+                    { color: 'bg-rose-400', label: adminCopy.chartLegend.rejected },
+                    { color: 'bg-orange-400', label: adminCopy.chartLegend.revision },
+                  ].map((item) => (
+                    <span key={item.label} className="inline-flex items-center gap-2">
+                      <span className={cn('h-2.5 w-2.5', item.color)} />
+                      {item.label}
+                    </span>
                   ))}
                 </div>
-              </div>
+              </section>
             )}
+          </aside>
+        </section>
+      </div>
+    );
+  }  const dashboardCopy = role === Role.STUDENT
+    ? 'Theo dõi file, phê duyệt và lịch in mà không bỏ sót tiến độ của bất kỳ yêu cầu nào.'
+    : 'Quan sát áp lực hàng đợi, khối lượng duyệt và nhịp vận hành máy in từ một bảng điều phối duy nhất.';
+
+  const primaryAction = role === Role.STUDENT
+    ? {
+      title: 'Tạo yêu cầu in mới.',
+      description: 'Khởi tạo yêu cầu, đính kèm file và đưa công việc vào luồng duyệt với thông tin rõ ràng ngay từ đầu.',
+      label: t('newRequest'),
+      icon: 'solar:add-square-bold',
+      onClick: onNewBooking,
+    }
+    : {
+      title: 'Kiểm tra hàng đợi.',
+      description: 'Chỉnh sửa và xếp lịch in.',
+      label: t('queue'),
+      icon: 'solar:checklist-bold',
+      onClick: () => onPageChange('queue'),
+    };
+
+  const quickActions = role === Role.STUDENT
+    ? [
+      { id: 'booking', label: t('booking'), icon: 'solar:add-square-bold' },
+      { id: 'history', label: t('history'), icon: 'solar:history-bold' },
+      { id: 'chat', label: t('chat'), icon: 'solar:chat-round-dots-bold' },
+      { id: 'pricing', label: 'Bảng giá', icon: 'solar:tag-price-bold' },
+    ]
+    : role === Role.MODERATOR
+      ? [
+        { id: 'queue', label: t('queue'), icon: 'solar:checklist-bold' },
+        { id: 'queue-status', label: 'Trạng thái hàng đợi', icon: 'solar:sort-by-time-bold' },
+        { id: 'chat', label: t('chat'), icon: 'solar:chat-round-dots-bold' },
+        { id: 'history', label: t('history'), icon: 'solar:history-bold' },
+      ]
+      : [
+        { id: 'queue', label: t('queue'), icon: 'solar:checklist-bold' },
+        { id: 'printers', label: t('printers'), icon: 'solar:printer-2-bold' },
+        { id: 'inventory', label: t('inventory'), icon: 'solar:box-bold' },
+        { id: 'chat', label: t('chat'), icon: 'solar:chat-round-dots-bold' },
+      ];
+
+  const kpiCards = [
+    {
+      label: t('pendingJobs'),
+      value: loading ? '...' : pendingJobs.length.toString(),
+      note: 'Đang chờ duyệt hoặc xếp lịch',
+      icon: 'solar:clock-circle-bold',
+      accent: 'text-sky-700 bg-sky-100/80 dark:text-sky-100 dark:bg-sky-300/10',
+    },
+    {
+      label: t('totalJobs'),
+      value: loading ? '...' : myJobs.length.toString(),
+      note: 'Tổng số yêu cầu trong phạm vi hiện tại',
+      icon: 'solar:widget-3-bold',
+      accent: 'text-[var(--landing-accent)] bg-[rgba(239,125,87,0.12)] dark:text-[#ffd7cc] dark:bg-[rgba(239,125,87,0.12)]',
+    },
+    {
+      label: t('printing'),
+      value: loading ? '...' : printingJobs.length.toString(),
+      note: 'Đang chạy trên máy in',
+      icon: 'solar:printer-2-bold',
+      accent: 'text-emerald-700 bg-emerald-100/80 dark:text-emerald-100 dark:bg-emerald-300/10',
+    },
+    {
+      label: t('done'),
+      value: loading ? '...' : doneJobs.length.toString(),
+      note: 'Đã hoàn thành và ghi nhận',
+      icon: 'solar:check-square-bold',
+      accent: 'text-amber-700 bg-amber-100/80 dark:text-amber-100 dark:bg-amber-300/10',
+    },
+  ];
+
+  const renderJobCard = (job: any) => (
+    <button
+      key={job.id}
+      onClick={() => onSelectJob(job.id)}
+      className="app-hover-box group w-full border-b border-[rgba(30,23,19,0.06)] p-4 text-left transition-colors hover:bg-[rgba(239,125,87,0.05)] last:border-b-0 dark:border-white/6 dark:hover:bg-white/4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="app-overline">#{job.id}</p>
+          <p className="mt-2 truncate text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.jobName}</p>
+          <div className="mt-3 grid gap-1 text-xs text-slate-500 dark:text-[var(--landing-muted)]">
+            <p>{job.printerName || t('notAssigned')}</p>
+            <p>{job.materialType} / {job.color}</p>
+            <p>{job.slotTime || t('waitingApproval')}</p>
           </div>
         </div>
+        <div className="flex shrink-0 flex-col items-end gap-3">
+          <StatusChip status={job.status as JobStatus} />
+          <span className="text-xs font-semibold text-slate-400 transition-colors group-hover:text-[var(--landing-accent)] dark:text-white/40">Mở</span>
+        </div>
+      </div>
+    </button>
+  );
+
+  const renderJobsTable = (tableJobs: any[]) => (
+    <div className="hidden overflow-x-auto md:block">
+      <table className="app-table">
+        <thead>
+          <tr>
+            <th>Yêu cầu</th>
+            <th>{t('printerName')}</th>
+            <th>{t('materialType')}</th>
+            <th>Trạng thái</th>
+            <th className="text-right">Mở</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tableJobs.map((job) => (
+            <tr key={job.id} className="cursor-pointer" onClick={() => onSelectJob(job.id)}>
+              <td className="px-6 py-5 align-top">
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.jobName}</span>
+                  <span className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-400 dark:text-white/38">#{job.id}</span>
+                </div>
+              </td>
+              <td className="px-6 py-5 align-top">
+                <div className="flex flex-col text-sm text-slate-600 dark:text-[var(--landing-muted)]">
+                  <span>{job.printerName || t('notAssigned')}</span>
+                  <span className="mt-1 text-xs text-slate-400 dark:text-white/40">{job.slotTime || t('waitingApproval')}</span>
+                </div>
+              </td>
+              <td className="px-6 py-5 align-top">
+                <div className="flex flex-col text-sm text-slate-600 dark:text-[var(--landing-muted)]">
+                  <span>{job.materialType} / {job.color}</span>
+                  <span className="mt-1 text-xs text-slate-400 dark:text-white/40">Tạo ngày {formatDate(job.createdAt)}</span>
+                </div>
+              </td>
+              <td className="px-6 py-5 align-top">
+                <StatusChip status={job.status as JobStatus} />
+              </td>
+              <td className="px-6 py-5 text-right align-top">
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelectJob(job.id);
+                  }}
+                  className="app-icon-button inline-flex h-10 w-10 items-center justify-center"
+                  aria-label={`Mở ${job.jobName}`}
+                >
+                  <ArrowRight size={16} />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const emptyState = (
+    <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+      <div className="flex h-16 w-16 items-center justify-center border border-[rgba(30,23,19,0.08)] bg-white/50 text-slate-400 dark:border-white/8 dark:bg-white/4 dark:text-white/38">
+        <FileText size={28} strokeWidth={1.4} />
+      </div>
+      <div>
+        <p className="text-base font-semibold text-slate-900 dark:text-[var(--landing-text)]">
+          {isHistoryPage ? 'Không có yêu cầu nào khớp với bộ lọc hiện tại.' : t('noJobs')}
+        </p>
+        <p className="mt-2 max-w-md text-sm text-slate-500 dark:text-[var(--landing-muted)]">
+          {isHistoryPage
+            ? 'Thử đổi trạng thái hoặc từ khóa tìm kiếm để mở rộng kết quả trong phần lưu trữ.'
+            : 'Hãy tạo yêu cầu in đầu tiên để bắt đầu lấp đầy không gian làm việc này.'}
+        </p>
+      </div>
+      {!isHistoryPage && role === Role.STUDENT && (
+        <button
+          onClick={onNewBooking}
+          className="app-primary-button inline-flex min-w-[210px] items-center justify-center gap-2 px-5 text-sm font-black uppercase tracking-[0.16em]"
+        >
+          <AppIcon icon="solar:add-square-bold" size={18} />
+          {t('newRequest')}
+        </button>
       )}
     </div>
   );
+
+  if (isHistoryPage) {
+    return (
+      <div className="space-y-6">
+        <section className="app-panel grid gap-5 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8 lg:py-8">
+          <div>
+            <p className="app-eyebrow">// Lưu trữ</p>
+            <h2 className="app-display-sm mt-3">Mỗi yêu cầu, một dòng thời gian.</h2>
+            <p className="app-subtle-copy mt-4 max-w-2xl text-sm sm:text-base">
+              Tìm theo tên yêu cầu hoặc mã ID, sau đó lọc theo trạng thái để xem lại toàn bộ hành trình xử lý.
+            </p>
+          </div>
+          <div className="grid gap-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/35" size={16} />
+              <input
+                type="text"
+                placeholder="Tìm kiếm yêu cầu"
+                value={historySearch}
+                onChange={(event) => setHistorySearch(event.target.value)}
+                className="app-control pl-10"
+              />
+            </div>
+            <select
+              value={historyFilter}
+              onChange={(event) => setHistoryFilter(event.target.value)}
+              className="app-control"
+            >
+              {HISTORY_FILTERS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <div className="app-panel-soft flex items-center justify-between px-4 py-3 text-sm text-slate-600 dark:text-[var(--landing-muted)]">
+              <span>Số yêu cầu khớp</span>
+              <span className="font-semibold text-slate-900 dark:text-[var(--landing-text)]">{loading ? '...' : filteredHistoryJobs.length}</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="app-panel overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 px-6 py-16 text-slate-500 dark:text-[var(--landing-muted)]">
+              <Loader2 size={22} className="animate-spin" />
+              <span className="text-sm">{t('loadingData')}</span>
+            </div>
+          ) : filteredHistoryJobs.length === 0 ? (
+            emptyState
+          ) : (
+            <>
+              <div className="md:hidden">
+                {filteredHistoryJobs.map(renderJobCard)}
+              </div>
+              {renderJobsTable(filteredHistoryJobs)}
+            </>
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="app-panel grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] lg:px-8 lg:py-8">
+        <div>
+          <p className="app-eyebrow">// Bảng điều phối</p>
+          <h2 className="app-display-sm mt-3">{role === Role.STUDENT ? 'Giữ mọi yêu cầu in luôn đúng tiến độ.' : 'Dashboard'}</h2>
+          <p className="app-subtle-copy mt-4 max-w-2xl text-sm sm:text-base">{dashboardCopy}</p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            {role === Role.STUDENT && (
+              <button
+                onClick={onNewBooking}
+                className="app-primary-button inline-flex min-w-[220px] items-center justify-center gap-2 px-5 text-sm font-black uppercase tracking-[0.16em]"
+              >
+                <AppIcon icon="solar:add-square-bold" size={18} />
+                {t('newRequest')}
+              </button>
+            )}
+            {role !== Role.STUDENT && (
+              <button
+                onClick={() => onPageChange('queue')}
+                className="app-primary-button inline-flex min-w-[220px] items-center justify-center gap-2 px-5 text-sm font-black uppercase tracking-[0.16em]"
+              >
+                <AppIcon icon="solar:checklist-bold" size={18} />
+                {t('queue')}
+              </button>
+            )}
+            <button
+              onClick={() => onPageChange('history')}
+              className="app-secondary-button inline-flex min-h-[50px] items-center justify-center gap-2 px-5 text-sm font-semibold"
+            >
+              <AppIcon icon="solar:history-bold" size={18} />
+              Xem lịch sử
+            </button>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+          <div className="app-panel-soft app-hover-box px-4 py-4">
+            <p className="app-overline">Người dùng</p>
+            <p className="mt-3 text-lg font-semibold text-slate-900 dark:text-[var(--landing-text)]">{currentUser?.fullName || 'Người dùng hệ thống'}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{currentUser?.email || role}</p>
+          </div>
+          <div className="app-panel-soft app-hover-box px-4 py-4">
+            <p className="app-overline">Yêu cầu đang mở</p>
+            <p className="app-stat-number mt-3 text-slate-900 dark:text-[var(--landing-text)]">{loading ? '...' : activeJobs.length}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-[var(--landing-muted)]">Các yêu cầu vẫn đang đi trong luồng xử lý.</p>
+          </div>
+          <div className="app-panel-soft app-hover-box px-4 py-4">
+            <p className="app-overline">Cần chú ý</p>
+            <p className="app-stat-number mt-3 text-slate-900 dark:text-[var(--landing-text)]">{loading ? '...' : needsRevisionJobs.length}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-[var(--landing-muted)]">Các yêu cầu đang chờ cập nhật file hoặc ghi chú.</p>
+          </div>
+        </div>
+      </section>
+
+      {needsRevisionJobs.length > 0 && (
+        <section className="app-panel border-[rgba(239,125,87,0.28)] bg-[linear-gradient(135deg,rgba(255,247,237,0.92),rgba(255,238,222,0.92))] px-6 py-5 dark:border-[rgba(239,125,87,0.18)] dark:bg-[linear-gradient(135deg,rgba(239,125,87,0.12),rgba(240,179,91,0.06))]">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center bg-[rgba(239,125,87,0.16)] text-[var(--landing-accent)]">
+              <PenLine size={18} />
+            </div>
+            <div>
+              <p className="app-eyebrow">// Cần chỉnh sửa</p>
+              <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-[var(--landing-text)]">
+                {needsRevisionJobs.length} yêu cầu cần được cập nhật trước khi in.
+              </h3>
+              <p className="mt-2 text-sm text-slate-600 dark:text-[var(--landing-muted)]">
+                {needsRevisionJobs.map((job) => job.jobName).join(', ')}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {kpiCards.map((card, index) => (
+          <article key={card.label} className="app-panel app-hover-box px-5 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className={cn('flex h-12 w-12 items-center justify-center', card.accent)}>
+                <AppIcon icon={card.icon} size={20} />
+              </div>
+              <span className="app-overline">0{index + 1}</span>
+            </div>
+            <p className="app-stat-number mt-5 text-slate-900 dark:text-[var(--landing-text)]">{card.value}</p>
+            <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{card.label}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{card.note}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.3fr)_360px]">
+        <div className="space-y-6">
+          <div className="app-panel overflow-hidden">
+            <div className="flex items-center justify-between gap-4 border-b border-[rgba(30,23,19,0.08)] px-6 py-5 dark:border-white/8">
+              <div>
+                <p className="app-overline">{role === Role.STUDENT ? '// Yêu cầu của tôi' : '// Yêu cầu đang xử lý'}</p>
+                <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-[var(--landing-text)]">
+                  {role === Role.STUDENT ? t('myJobs') : t('allJobs')}
+                </h3>
+              </div>
+              <button
+                onClick={() => onPageChange('history')}
+                className="text-sm font-semibold text-[var(--landing-accent)] transition-colors hover:text-[var(--landing-accent-strong)]"
+              >
+                Xem lưu trữ
+              </button>
+            </div>
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 px-6 py-16 text-slate-500 dark:text-[var(--landing-muted)]">
+                <Loader2 size={22} className="animate-spin" />
+                <span className="text-sm">{t('loadingData')}</span>
+              </div>
+            ) : recentJobs.length === 0 ? (
+              emptyState
+            ) : (
+              <>
+                <div className="md:hidden">
+                  {recentJobs.map(renderJobCard)}
+                </div>
+                {renderJobsTable(recentJobs)}
+              </>
+            )}
+          </div>
+        </div>
+
+        <aside className="space-y-5">
+          <section className="app-hover-box overflow-hidden border border-[rgba(20,33,43,0.08)] bg-[linear-gradient(145deg,#172733_0%,#10202b_58%,#ef7d57_170%)] px-6 py-6 text-white shadow-[0_18px_40px_rgba(14,25,34,0.14)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/55">// Thao tác</p>
+            <h3 className="app-display-font mt-3 text-[2rem] leading-none">{primaryAction.title}</h3>
+            <p className="mt-4 text-sm leading-7 text-white/74">
+              {primaryAction.description}
+            </p>
+            <button
+              onClick={primaryAction.onClick}
+              className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 bg-[rgba(255,248,240,0.94)] px-4 text-sm font-black uppercase tracking-[0.16em] text-[var(--landing-bg)] transition-colors hover:bg-white"
+            >
+              <AppIcon icon={primaryAction.icon} size={18} />
+              {primaryAction.label}
+            </button>
+          </section>
+
+          <section className="app-panel px-5 py-5">
+            <p className="app-overline">// Lối tắt</p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {quickActions.map((action) => (
+                <button
+                  key={action.id}
+                  onClick={() => onPageChange(action.id)}
+                  className="app-panel-soft app-hover-box flex min-h-[104px] flex-col items-center justify-center gap-3 px-4 text-center transition-colors hover:border-[rgba(239,125,87,0.22)] hover:bg-[rgba(239,125,87,0.08)] dark:hover:bg-[rgba(239,125,87,0.1)]"
+                >
+                  <AppIcon icon={action.icon} size={20} className="text-[var(--landing-accent)]" />
+                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-700 dark:text-[var(--landing-text)]">{action.label}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {activeJobs.length > 0 && (
+            <section className="app-panel px-5 py-5">
+              <p className="app-overline">// Theo dõi trạng thái</p>
+              <div className="mt-4 space-y-3">
+                {activeJobs.slice(0, 3).map((job) => {
+                  const stepIndex = Math.max(FLOW_STEPS.indexOf(job.status as JobStatus), 0);
+                  return (
+                    <button
+                      key={job.id}
+                      onClick={() => onSelectJob(job.id)}
+                      className="app-panel-soft app-hover-box block w-full px-4 py-4 text-left transition-colors hover:border-[rgba(239,125,87,0.18)] hover:bg-[rgba(239,125,87,0.08)] dark:hover:bg-[rgba(239,125,87,0.1)]"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.jobName}</p>
+                          <p className="mt-1 text-xs text-slate-400 dark:text-white/40">#{job.id}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getTrackerIcon(job.status)}
+                          <StatusChip status={job.status as JobStatus} className="min-h-[24px] px-2 py-0.5 text-[9px]" />
+                        </div>
+                      </div>
+                      <div className="mt-4 flex gap-1">
+                        {FLOW_STEPS.map((step, index) => (
+                          <span
+                            key={step}
+                            className={cn(
+                              'h-1.5 flex-1',
+                              index <= stepIndex ? 'bg-[var(--landing-accent)]' : 'bg-slate-200 dark:bg-white/8'
+                            )}
+                          />
+                        ))}
+                      </div>
+                      <p className="mt-3 text-xs text-slate-500 dark:text-[var(--landing-muted)]">{job.printerName || t('notAssigned')}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {stats && (
+            <section className="app-panel px-5 py-5">
+              <p className="app-overline">// Thống kê lab</p>
+              <div className="mt-4 space-y-3 text-sm">
+                {[
+                  { label: t('totalJobs'), value: stats.totalJobs, valueClass: 'text-slate-900 dark:text-[var(--landing-text)]' },
+                  { label: t('printing'), value: stats.printing, valueClass: 'text-emerald-700 dark:text-emerald-200' },
+                  { label: t('pendingApproval'), value: stats.pendingReview, valueClass: 'text-[var(--landing-accent)]' },
+                  { label: t('activeUsers'), value: stats.totalUsers, valueClass: 'text-slate-900 dark:text-[var(--landing-text)]' },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center justify-between border-b border-[rgba(30,23,19,0.06)] pb-3 last:border-b-0 last:pb-0 dark:border-white/6">
+                    <span className="text-slate-500 dark:text-[var(--landing-muted)]">{item.label}</span>
+                    <span className={cn('font-semibold', item.valueClass)}>{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {dailyStats.length > 0 && (
+            <section className="app-panel px-5 py-5">
+              <p className="app-overline">// Nhịp 7 ngày</p>
+              <div className="mt-4 flex h-32 items-end gap-2">
+                {dailyStats.map((day: any) => {
+                  const total = day.approved + day.done + day.rejected + day.needsRevision;
+                  const doneHeight = total ? Math.max((day.done / maxDailyTotal) * 88, day.done ? 6 : 0) : 4;
+                  const approvedHeight = total ? Math.max((day.approved / maxDailyTotal) * 88, day.approved ? 6 : 0) : 0;
+                  const rejectedHeight = day.rejected ? Math.max((day.rejected / maxDailyTotal) * 88, 6) : 0;
+                  const revisionHeight = day.needsRevision ? Math.max((day.needsRevision / maxDailyTotal) * 88, 6) : 0;
+                  return (
+                    <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
+                      <div className="flex h-[92px] w-full flex-col justify-end gap-px">
+                        {day.done > 0 && <span className="w-full bg-emerald-500" style={{ height: `${doneHeight}px` }} />}
+                        {day.approved > 0 && <span className="w-full bg-sky-500" style={{ height: `${approvedHeight}px` }} />}
+                        {day.rejected > 0 && <span className="w-full bg-rose-400" style={{ height: `${rejectedHeight}px` }} />}
+                        {day.needsRevision > 0 && <span className="w-full bg-orange-400" style={{ height: `${revisionHeight}px` }} />}
+                        {total === 0 && <span className="h-[4px] w-full bg-slate-200 dark:bg-white/8" />}
+                      </div>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-white/38">{day.date.slice(5)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3 text-[11px] text-slate-500 dark:text-[var(--landing-muted)]">
+                {[
+                  { color: 'bg-emerald-500', label: 'Hoàn thành' },
+                  { color: 'bg-sky-500', label: 'Đã duyệt' },
+                  { color: 'bg-rose-400', label: 'Từ chối' },
+                  { color: 'bg-orange-400', label: 'Chỉnh sửa' },
+                ].map((item) => (
+                  <span key={item.label} className="inline-flex items-center gap-2">
+                    <span className={cn('h-2.5 w-2.5', item.color)} />
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+        </aside>
+      </section>
+    </div>
+  );
 };
+
 

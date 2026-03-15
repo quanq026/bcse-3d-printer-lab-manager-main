@@ -47,3 +47,7 @@ tmp/
 temp/
 test.js
 metadata.json
+
+.playwright-cli/
+
+output/playwright

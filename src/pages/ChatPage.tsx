@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, RefreshCw, Loader2, User, ShieldCheck, Crown } from 'lucide-react';
+import { MessageCircle, Send, RefreshCw, Loader2, User, ShieldCheck, Crown, Clock3, MessagesSquare } from 'lucide-react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 
@@ -17,10 +17,22 @@ interface ChatPageProps {
   currentUser: any;
 }
 
-const ROLE_BADGE: Record<string, { label: string; color: string; icon: any }> = {
-  Admin: { label: 'Admin', color: 'text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-400', icon: Crown },
-  Moderator: { label: 'Mod', color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400', icon: ShieldCheck },
-  Student: { label: 'SV', color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400', icon: User },
+const ROLE_BADGE: Record<string, { label: string; className: string; icon: any }> = {
+  Admin: {
+    label: 'Quản trị',
+    className: 'border border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300',
+    icon: Crown,
+  },
+  Moderator: {
+    label: 'Điều phối',
+    className: 'border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/40 dark:bg-sky-900/20 dark:text-sky-300',
+    icon: ShieldCheck,
+  },
+  Student: {
+    label: 'Sinh viên',
+    className: 'border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300',
+    icon: User,
+  },
 };
 
 function formatTime(iso: string) {
@@ -86,123 +98,166 @@ export const ChatPage: React.FC<ChatPageProps> = ({ currentUser }) => {
   };
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-120px)] max-w-4xl flex-col">
-      <div className="mb-3 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
-            <MessageCircle size={24} className="text-blue-600" />
-            Cộng đồng & Nhắc đơn
-          </h2>
-          <p className="text-sm text-slate-500">Gửi tin nhắn, nhắc nhở phê duyệt, hoặc hỏi về trạng thái yêu cầu in.</p>
+    <div className="app-student-squared mx-auto flex h-[calc(100dvh-128px)] max-w-5xl flex-col gap-4 xl:max-h-[864px]">
+      <section className="app-panel app-hover-box p-5 sm:p-6">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)] xl:items-start">
+          <div className="space-y-3">
+            <p className="app-eyebrow">// Trao đổi</p>
+            <div className="space-y-3">
+              <h2 className="app-display-sm flex items-center gap-3 text-slate-900 dark:text-[var(--landing-text)]">
+                <MessageCircle size={28} className="text-[var(--landing-accent-strong)]" />
+                Kênh trao đổi của lab
+              </h2>
+              <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">
+                Dùng mục này để hỏi về trạng thái đơn, nhắc moderator duyệt file hoặc trao đổi trực tiếp khi cần điều chỉnh yêu cầu in.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+            <div className="app-panel-soft border p-4">
+              <p className="app-overline">Tự làm mới</p>
+              <p className="mt-2 flex items-center gap-2 text-sm font-black text-slate-900 dark:text-[var(--landing-text)]">
+                <Clock3 size={14} className="text-[var(--landing-accent-strong)]" />
+                Mỗi 15 giây
+              </p>
+            </div>
+            <div className="app-panel-soft border p-4">
+              <p className="app-overline">Tin nhắn</p>
+              <p className="mt-2 flex items-center gap-2 text-sm font-black text-slate-900 dark:text-[var(--landing-text)]">
+                <MessagesSquare size={14} className="text-[var(--landing-accent-strong)]" />
+                {messages.length} mục hiển thị
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setLoading(true);
+                fetchMessages().finally(() => setLoading(false));
+              }}
+              className="app-secondary-button flex min-h-[64px] items-center justify-center gap-2 px-4 font-bold uppercase tracking-[0.16em] text-slate-700 dark:text-[var(--landing-text)]"
+              title="Làm mới"
+            >
+              <RefreshCw size={16} />
+              Làm mới
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => {
-            setLoading(true);
-            fetchMessages().finally(() => setLoading(false));
-          }}
-          className="self-start rounded-lg p-2 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20"
-          title="Làm mới"
-        >
-          <RefreshCw size={18} />
-        </button>
-      </div>
+      </section>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:rounded-2xl sm:p-4">
-        {loading ? (
-          <div className="flex h-full items-center justify-center text-slate-400">
-            <Loader2 size={24} className="mr-2 animate-spin" />
-            <span>Đang tải tin nhắn...</span>
+      <div className="min-h-0 grid flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <section className="app-panel app-hover-box flex min-h-0 flex-col overflow-hidden border">
+          <div className="border-b border-[rgba(30,23,19,0.08)] px-5 py-4 dark:border-white/8">
+            <p className="app-overline">Dòng hội thoại</p>
           </div>
-        ) : messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-400">
-            <MessageCircle size={40} className="opacity-30" />
-            <p className="text-sm">Chưa có tin nhắn nào. Hãy là người đầu tiên.</p>
-          </div>
-        ) : (
-          messages.map((msg) => {
-            const isMe = msg.userId === currentUser?.id;
-            const badge = ROLE_BADGE[msg.userRole] || ROLE_BADGE.Student;
-            const BadgeIcon = badge.icon;
-            return (
-              <div key={msg.id} className={cn('flex gap-3', isMe && 'flex-row-reverse')}>
-                <div
-                  className={cn(
-                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold',
-                    isMe
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                  )}
-                >
-                  {msg.userName.charAt(0).toUpperCase()}
-                </div>
 
-                <div className={cn('max-w-[88%] space-y-1 sm:max-w-[75%]', isMe && 'flex flex-col items-end')}>
-                  <div className={cn('flex flex-wrap items-center gap-2 text-xs', isMe && 'flex-row-reverse')}>
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">
-                      {isMe ? 'Bạn' : msg.userName}
-                    </span>
-                    <span className={cn('flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold', badge.color)}>
-                      <BadgeIcon size={10} />
-                      {badge.label}
-                    </span>
-                    {msg.jobId && (
-                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
-                        #{msg.jobId}
-                      </span>
-                    )}
-                    <span className="text-slate-400">{formatTime(msg.createdAt)}</span>
-                  </div>
-
-                  <div
-                    className={cn(
-                      'whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
-                      isMe
-                        ? 'rounded-tr-sm bg-blue-600 text-white'
-                        : 'rounded-tl-sm bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
-                    )}
-                  >
-                    {msg.content}
-                  </div>
-                </div>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+            {loading ? (
+              <div className="flex h-full items-center justify-center text-slate-500 dark:text-[var(--landing-muted)]">
+                <Loader2 size={24} className="mr-2 animate-spin" />
+                <span>Đang tải tin nhắn...</span>
               </div>
-            );
-          })
-        )}
-        <div ref={bottomRef} />
-      </div>
+            ) : messages.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-400 dark:text-[var(--landing-muted)]">
+                <MessageCircle size={40} className="opacity-30" />
+                <p className="text-sm">Chưa có tin nhắn nào. Bạn có thể mở đầu cuộc trao đổi trước.</p>
+              </div>
+            ) : (
+              messages.map((msg) => {
+                const isMe = msg.userId === currentUser?.id;
+                const badge = ROLE_BADGE[msg.userRole] || ROLE_BADGE.Student;
+                const BadgeIcon = badge.icon;
 
-      <div className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:rounded-2xl sm:p-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-          <label className="whitespace-nowrap text-xs font-semibold text-slate-500">Nhắc đơn #</label>
-          <select
-            value={jobId}
-            onChange={(e) => setJobId(e.target.value)}
-            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-          >
-            <option value="">-- Không gắn đơn --</option>
-            {jobs.map((j) => (
-              <option key={j.id} value={j.id}>{j.id} – {j.jobName} ({j.status})</option>
-            ))}
-          </select>
-        </div>
+                return (
+                  <div key={msg.id} className={cn('flex gap-3', isMe && 'flex-row-reverse')}>
+                    <div
+                      className={cn(
+                        'flex h-10 w-10 shrink-0 items-center justify-center border text-sm font-black',
+                        isMe
+                          ? 'border-[rgba(239,125,87,0.4)] bg-[rgba(239,125,87,0.14)] text-[var(--landing-accent-strong)]'
+                          : 'border-[rgba(30,23,19,0.08)] bg-white/70 text-slate-600 dark:border-white/8 dark:bg-white/5 dark:text-[var(--landing-muted)]'
+                      )}
+                    >
+                      {msg.userName.charAt(0).toUpperCase()}
+                    </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={handleKeyDown}
-            rows={2}
-            placeholder="Nhập tin nhắn... (Enter để gửi, Shift+Enter xuống dòng)"
-            className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          />
-          <button
-            onClick={handleSend}
-            disabled={sending || !content.trim()}
-            className="flex min-h-11 items-center justify-center gap-2 self-stretch rounded-xl bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:self-end"
-          >
-            {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-          </button>
-        </div>
+                    <div className={cn('max-w-[88%] space-y-2 sm:max-w-[76%]', isMe && 'flex flex-col items-end')}>
+                      <div className={cn('flex flex-wrap items-center gap-2 text-xs', isMe && 'flex-row-reverse')}>
+                        <span className="font-semibold text-slate-700 dark:text-[var(--landing-text)]">
+                          {isMe ? 'Bạn' : msg.userName}
+                        </span>
+                        <span className={cn('inline-flex items-center gap-1 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em]', badge.className)}>
+                          <BadgeIcon size={10} />
+                          {badge.label}
+                        </span>
+                        {msg.jobId && (
+                          <span className="border border-[rgba(239,125,87,0.2)] bg-[rgba(239,125,87,0.12)] px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--landing-accent-strong)]">
+                            #{msg.jobId}
+                          </span>
+                        )}
+                        <span className="text-slate-400 dark:text-white/38">{formatTime(msg.createdAt)}</span>
+                      </div>
+
+                      <div
+                        className={cn(
+                          'whitespace-pre-wrap break-words border px-4 py-3 text-sm leading-7',
+                          isMe
+                            ? 'border-[rgba(239,125,87,0.28)] bg-[rgba(239,125,87,0.1)] text-slate-900 dark:border-[rgba(239,125,87,0.24)] dark:bg-[rgba(239,125,87,0.12)] dark:text-[var(--landing-text)]'
+                            : 'border-[rgba(30,23,19,0.08)] bg-white/60 text-slate-800 dark:border-white/8 dark:bg-white/4 dark:text-[var(--landing-text)]'
+                        )}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            <div ref={bottomRef} />
+          </div>
+        </section>
+
+        <aside className="app-panel app-hover-box flex flex-col gap-3 border p-4 sm:p-5">
+          <div className="space-y-2">
+            <p className="app-overline">Gắn với đơn</p>
+            <label className="text-sm font-semibold text-slate-700 dark:text-[var(--landing-text)]">Nhắc theo mã đơn</label>
+            <select
+              value={jobId}
+              onChange={(e) => setJobId(e.target.value)}
+              className="app-control"
+            >
+              <option value="">Không gắn đơn cụ thể</option>
+              {jobs.map((j) => (
+                <option key={j.id} value={j.id}>{j.id} - {j.jobName} ({j.status})</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <p className="app-overline">Soạn tin nhắn</p>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={7}
+              placeholder="Nhập nội dung cần trao đổi... Enter để gửi, Shift + Enter để xuống dòng."
+              className="app-control min-h-[168px] resize-none py-3"
+            />
+          </div>
+
+          <div className="space-y-3 pt-1">
+            <button
+              onClick={handleSend}
+              disabled={sending || !content.trim()}
+              className="app-primary-button flex w-full items-center justify-center gap-2 px-4 text-sm font-black uppercase tracking-[0.16em] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+              Gửi tin nhắn
+            </button>
+            <p className="text-xs leading-6 text-slate-500 dark:text-[var(--landing-muted)]">
+              Tin nhắn của bạn sẽ được hiển thị cho sinh viên, moderator và quản trị viên có quyền theo dõi hệ thống.
+            </p>
+          </div>
+        </aside>
       </div>
     </div>
   );

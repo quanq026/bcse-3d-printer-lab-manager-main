@@ -1,11 +1,13 @@
 ﻿import React, { Suspense, lazy, useEffect, useState } from 'react';
-import { Role } from './types';
+import { ArrowLeft, Loader2, Menu } from 'lucide-react';
+import { LanguageToggle } from './components/LanguageToggle';
 import { Sidebar } from './components/Sidebar';
 import { ThemeToggle } from './components/ThemeToggle';
-import { StarRain } from './components/StarRain';
-import { LandingPage } from './pages/LandingPage';
+import { useLang } from './contexts/LanguageContext';
 import { api } from './lib/api';
-import { ArrowLeft, Loader2, Menu } from 'lucide-react';
+import { fillText, getUiText } from './lib/uiText';
+import { LandingPage } from './pages/LandingPage';
+import { Role } from './types';
 
 const StudentDashboard = lazy(() => import('./pages/StudentDashboard').then((module) => ({ default: module.StudentDashboard })));
 const BookingWizard = lazy(() => import('./pages/BookingWizard').then((module) => ({ default: module.BookingWizard })));
@@ -22,15 +24,20 @@ const PricingPage = lazy(() => import('./pages/PricingPage').then((module) => ({
 const QueuePage = lazy(() => import('./pages/QueuePage').then((module) => ({ default: module.QueuePage })));
 
 function PageLoader() {
+  const { lang } = useLang();
+  const copy = getUiText(lang);
+
   return (
-    <div className="flex h-full min-h-[240px] items-center justify-center text-slate-400">
+    <div className="app-panel flex min-h-[260px] items-center justify-center px-6 py-12 text-sm text-slate-500 dark:text-[var(--landing-muted)]">
       <Loader2 size={22} className="mr-2 animate-spin" />
-      <span className="text-sm">Loading...</span>
+      <span className="tracking-[0.12em] uppercase">{copy.shared.loadingWorkspace}</span>
     </div>
   );
 }
 
 export default function App() {
+  const { lang } = useLang();
+  const copy = getUiText(lang);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [role, setRole] = useState<Role>(Role.STUDENT);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -90,6 +97,22 @@ export default function App() {
     return <LandingPage onLogin={handleLogin} />;
   }
 
+  const currentMeta = activePage === 'job-detail' && selectedJob
+    ? {
+        eyebrow: copy.pageMeta['job-detail'].eyebrow,
+        title: selectedJob.jobName || copy.pageMeta['job-detail'].title,
+        note: selectedJob.id
+          ? fillText(copy.shared.jobDetailSelectedNote, { id: selectedJob.id })
+          : copy.pageMeta['job-detail'].note,
+      }
+    : (copy.pageMeta as Record<string, { eyebrow: string; title: string; note: string }>)[activePage] || copy.pageMeta.dashboard;
+
+  const roleCopy = {
+    [Role.STUDENT]: copy.roles.studentSpace,
+    [Role.MODERATOR]: copy.roles.moderatorSpace,
+    [Role.ADMIN]: copy.roles.adminSpace,
+  }[role];
+
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
@@ -122,23 +145,24 @@ export default function App() {
         return selectedJob ? (
           <JobDetail job={selectedJob} onBack={() => handlePageChange('dashboard')} />
         ) : (
-          <div className="flex min-h-[240px] items-center justify-center text-sm text-slate-400">
-            Unable to load this job.
+          <div className="app-panel flex min-h-[240px] items-center justify-center px-6 py-12 text-sm text-slate-500 dark:text-[var(--landing-muted)]">
+            {copy.shared.pageLoadFailed}
           </div>
         );
       default:
         return (
-          <div className="flex h-full items-center justify-center text-slate-400">
-            Page is under construction...
+          <div className="app-panel flex min-h-[240px] items-center justify-center px-6 py-12 text-sm text-slate-500 dark:text-[var(--landing-muted)]">
+            {copy.shared.pageUnavailable}
           </div>
         );
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100">
-      <StarRain />
-      <div className="relative z-10 flex w-full flex-1">
+    <div className="app-shell transition-colors duration-200">
+      <div className="app-shell-noise" />
+      <div className="app-shell-grid" />
+      <div className="relative z-10 flex min-h-screen w-full flex-1">
         <Sidebar
           role={role}
           activePage={activePage}
@@ -150,42 +174,61 @@ export default function App() {
         />
 
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 transition-colors duration-200 dark:border-slate-800 dark:bg-slate-900 sm:h-16 sm:px-6 lg:px-8">
-            <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-              <button
-                onClick={() => setMobileSidebarOpen(true)}
-                className="rounded-xl bg-slate-100 p-2 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 lg:hidden"
-                aria-label="Open navigation"
-              >
-                <Menu size={18} />
-              </button>
-              {activePage !== 'dashboard' && (
-                <button
-                  onClick={() => handlePageChange('dashboard')}
-                  className="rounded-xl bg-slate-100 p-2 text-slate-500 transition-all hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-800 dark:hover:bg-blue-900/30"
-                  title="Back to dashboard"
-                  aria-label="Back to dashboard"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-              )}
-              <h2 className="truncate text-sm font-semibold capitalize sm:text-lg">{activePage.replace('-', ' ')}</h2>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-4">
-              {currentUser && (
-                <span className="hidden text-xs text-slate-500 dark:text-slate-400 xl:block">
-                  {currentUser.fullName} · <span className="font-bold text-blue-600">{currentUser.role}</span>
-                </span>
-              )}
-              <div className="hidden items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400 sm:flex">
-                <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                Lab Status: Online
+          <header className="sticky top-0 z-20 px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8">
+            <div className="app-panel flex flex-col gap-4 px-4 py-4 sm:px-6 sm:py-5 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    onClick={() => setMobileSidebarOpen(true)}
+                    className="app-icon-button inline-flex h-11 w-11 items-center justify-center lg:hidden"
+                    aria-label={copy.shared.openNavigation}
+                  >
+                    <Menu size={18} />
+                  </button>
+                  {activePage !== 'dashboard' && (
+                    <button
+                      onClick={() => handlePageChange('dashboard')}
+                      className="app-icon-button inline-flex h-11 w-11 items-center justify-center"
+                      title={copy.shared.backDashboard}
+                      aria-label={copy.shared.backDashboard}
+                    >
+                      <ArrowLeft size={18} />
+                    </button>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="app-eyebrow">{currentMeta.eyebrow}</p>
+                  <h1 className="app-display-sm mt-2 truncate">{currentMeta.title}</h1>
+                  <p className="app-subtle-copy mt-2 max-w-3xl text-sm">{currentMeta.note}</p>
+                </div>
               </div>
-              <ThemeToggle />
+              <div className={`grid w-full gap-3 ${currentUser ? 'sm:grid-cols-2 xl:grid-cols-[minmax(0,1.35fr)_repeat(3,minmax(0,1fr))] xl:w-[980px]' : 'sm:grid-cols-3 xl:w-[720px]'}`}>
+                {currentUser && (
+                  <div className="app-panel-soft flex h-full min-w-0 items-center gap-3 px-4 py-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-[linear-gradient(135deg,var(--landing-accent),var(--landing-amber))] text-sm font-black uppercase text-white">
+                      {currentUser.fullName?.charAt(0) || 'U'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="app-overline">{copy.shared.userLabel}</p>
+                      <p className="truncate text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{currentUser.fullName}</p>
+                      <p className="text-xs text-slate-500 dark:text-[var(--landing-muted)]">{roleCopy}</p>
+                    </div>
+                  </div>
+                )}
+                <div className="app-panel-soft hidden h-full min-w-0 items-center gap-3 px-4 py-3 sm:flex">
+                  <span className="h-2.5 w-2.5 bg-[var(--landing-amber)]" />
+                  <div>
+                    <p className="app-overline">{copy.shared.statusLabel}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{copy.shared.statusOnline}</p>
+                  </div>
+                </div>
+                <LanguageToggle expanded />
+                <ThemeToggle expanded />
+              </div>
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <div className="flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8">
             <Suspense fallback={<PageLoader />}>
               {renderPage()}
             </Suspense>

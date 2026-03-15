@@ -5,14 +5,9 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  FileText,
-  Globe,
-  Layers,
   Loader2,
-  MapPin,
-  Printer,
-  ShieldCheck,
 } from 'lucide-react';
+import { AppIcon } from '../components/AppIcon';
 import { cn } from '../lib/utils';
 import { api } from '../lib/api';
 import { useLang } from '../contexts/LanguageContext';
@@ -49,9 +44,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
   const heroFeatures = useMemo(
     () => [
-      { icon: FileText, title: t('featurePolicy'), desc: t('featurePolicyDesc') },
-      { icon: Layers, title: t('featureMaterial'), desc: t('featureMaterialDesc') },
-      { icon: ShieldCheck, title: t('featureSafe'), desc: t('featureSafeDesc') },
+      { icon: 'solar:document-text-bold', title: t('featurePolicy'), desc: t('featurePolicyDesc') },
+      { icon: 'solar:layers-bold', title: t('featureMaterial'), desc: t('featureMaterialDesc') },
+      { icon: 'solar:shield-keyhole-bold', title: t('featureSafe'), desc: t('featureSafeDesc') },
     ],
     [t]
   );
@@ -113,12 +108,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       <section className="landing-hero">
         <div className="landing-masthead landing-reveal">
           <div className="landing-brand-mark">
-            <Printer size={26} strokeWidth={2.1} />
+            <AppIcon icon="solar:printer-2-bold" size={26} />
           </div>
           <div>
             <h1 className="landing-brand-title">BCSE 3D Lab</h1>
             <p className="landing-brand-subtitle">
-              <MapPin size={12} />
+              <AppIcon icon="solar:map-point-bold" size={12} />
               <span>VJU My Dinh . VJU Hoa Lac</span>
             </p>
           </div>
@@ -135,11 +130,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         </div>
 
         <div className="landing-feature-list landing-reveal landing-reveal-delay-3">
-          {heroFeatures.map(({ icon: Icon, title, desc }, index) => (
-            <article key={title} className="landing-feature-card">
+          {heroFeatures.map(({ icon, title, desc }, index) => (
+            <article key={title} className="landing-feature-card app-hover-box">
               <div className="landing-feature-index">{String(index + 1).padStart(2, '0')}</div>
               <div className="landing-feature-icon">
-                <Icon size={18} />
+                <AppIcon icon={icon} size={18} />
               </div>
               <div>
                 <h3>{title}</h3>
@@ -176,7 +171,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               className="landing-lang-toggle"
               aria-label="Toggle language"
             >
-              <Globe size={14} />
+              <AppIcon icon="solar:global-bold" size={14} />
               <span>{lang === 'VN' ? 'VN' : 'JP'}</span>
             </button>
           </div>
@@ -228,7 +223,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               <Field label={t('email')}>
                 <input
                   type="email"
+                  name="loginEmail"
                   placeholder={t('emailPlaceholder')}
+                  autoComplete="username"
                   required
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
@@ -241,6 +238,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                   <input
                     type={showPass ? 'text' : 'password'}
                     placeholder="••••••••"
+                    name="loginPassword"
+                    autoComplete="current-password"
                     required
                     value={loginPass}
                     onChange={(e) => setLoginPass(e.target.value)}
@@ -266,7 +265,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 <Field label={t('fullName')}>
                   <input
                     type="text"
+                    name="fullName"
                     placeholder="Nguyen Van A"
+                    autoComplete="name"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
@@ -277,7 +278,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 <Field label={t('studentId')}>
                   <input
                     type="text"
+                    name="studentId"
                     placeholder="2201xxxx"
+                    autoComplete="off"
                     value={studentId}
                     onChange={(e) => setStudentId(e.target.value)}
                     className="landing-input"
@@ -288,7 +291,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               <Field label={t('phone')}>
                 <input
                   type="tel"
+                  name="phone"
                   placeholder="09xxxxxxxx"
+                  autoComplete="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="landing-input"
@@ -298,7 +303,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               <Field label={t('supervisor')}>
                 <input
                   type="text"
+                  name="supervisor"
                   placeholder="Dr. Nguyen Van B"
+                  autoComplete="organization-title"
                   value={supervisor}
                   onChange={(e) => setSupervisor(e.target.value)}
                   className="landing-input"
@@ -308,7 +315,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               <Field label={t('email')} hint={t('emailHint')}>
                 <input
                   type="email"
+                  name="registerEmail"
                   placeholder={t('emailPlaceholder')}
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -324,6 +333,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                   <input
                     type={showPass ? 'text' : 'password'}
                     placeholder="••••••••"
+                    name="newPassword"
+                    autoComplete="new-password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -345,6 +356,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 <input
                   type={showPass ? 'text' : 'password'}
                   placeholder="••••••••"
+                  name="confirmPassword"
+                  autoComplete="new-password"
                   required
                   value={confirmPass}
                   onChange={(e) => setConfirmPass(e.target.value)}

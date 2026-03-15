@@ -1,24 +1,40 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
+  Check,
+  Loader2,
+  MapPin,
   Package,
   Plus,
-  AlertTriangle,
-  ArrowUpRight,
-  Search,
-  History,
-  Loader2,
   RefreshCw,
-  X,
-  Check,
+  Search,
   Trash2,
-  MapPin
+  X,
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { AppIcon } from '../components/AppIcon';
+import { useLang } from '../contexts/LanguageContext';
 import { api } from '../lib/api';
+import { fillText, getUiText } from '../lib/uiText';
+import { cn } from '../lib/utils';
 
-const AREAS = ['Mỹ Đình', 'Hòa Lạc'];
+const AREAS = ['My Dinh', 'Hoa Lac'];
+const AREA_LABELS: Record<string, string> = {
+  'My Dinh': 'Mỹ Đình',
+  'Hoa Lac': 'Hòa Lạc',
+};
 const MATERIALS = ['PLA', 'PETG', 'TPU', 'ABS'];
-const COLOR_PRESETS = ['Trắng', 'Đen', 'Xám', 'Xanh dương', 'Xanh lá', 'Đỏ', 'Vàng', 'Cam', 'Tím', 'Hồng'];
+const COLOR_PRESETS = [
+  { value: 'White', label: 'Trắng' },
+  { value: 'Black', label: 'Đen' },
+  { value: 'Gray', label: 'Xám' },
+  { value: 'Blue', label: 'Xanh dương' },
+  { value: 'Green', label: 'Xanh lá' },
+  { value: 'Red', label: 'Đỏ' },
+  { value: 'Yellow', label: 'Vàng' },
+  { value: 'Orange', label: 'Cam' },
+  { value: 'Purple', label: 'Tím' },
+  { value: 'Pink', label: 'Hồng' },
+];
 
 const emptyNew = () => ({
   material: 'PLA',
@@ -27,16 +43,22 @@ const emptyNew = () => ({
   remainingGrams: 1000,
   threshold: 200,
   location: '',
-  area: 'Mỹ Đình',
+  area: 'My Dinh',
 });
 
-const statusLabel: Record<string, string> = {
-  'In Stock': 'Còn hàng',
-  'Low': 'Sắp hết',
-  'Out of Stock': 'Hết hàng',
-};
+const areaLabel = (area?: string) => AREA_LABELS[area || ''] || area || 'Khác';
 
 export const AdminInventory: React.FC = () => {
+  const { lang } = useLang();
+  const text = getUiText(lang);
+  const copy = text.adminInventory;
+  const shared = text.shared;
+  const statusLabels: Record<string, string> = {
+    'In Stock': copy.inStock,
+    Low: copy.lowStock,
+    'Out of Stock': copy.outOfStock,
+  };
+
   const [inventory, setInventory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -58,31 +80,32 @@ export const AdminInventory: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchInventory(); }, []);
+  useEffect(() => {
+    fetchInventory();
+  }, []);
 
-  const filtered = inventory.filter(item =>
-    !search ||
-    item.color?.toLowerCase().includes(search.toLowerCase()) ||
-    item.material?.toLowerCase().includes(search.toLowerCase()) ||
-    item.brand?.toLowerCase().includes(search.toLowerCase()) ||
-    item.id?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => inventory.filter((item) => !search
+    || item.color?.toLowerCase().includes(search.toLowerCase())
+    || item.material?.toLowerCase().includes(search.toLowerCase())
+    || item.brand?.toLowerCase().includes(search.toLowerCase())
+    || item.id?.toLowerCase().includes(search.toLowerCase())
+  ), [inventory, search]);
 
-  const lowStock = inventory.filter(i => i.status === 'Low' || i.status === 'Out of Stock').length;
-  const totalPLA = inventory.filter(i => i.material === 'PLA').reduce((sum, i) => sum + (i.remainingGrams || 0), 0);
-  const totalPETG = inventory.filter(i => i.material === 'PETG').reduce((sum, i) => sum + (i.remainingGrams || 0), 0);
+  const lowStock = inventory.filter((item) => item.status === 'Low' || item.status === 'Out of Stock').length;
+  const totalPLA = inventory.filter((item) => item.material === 'PLA').reduce((sum, item) => sum + (item.remainingGrams || 0), 0);
+  const totalPETG = inventory.filter((item) => item.material === 'PETG').reduce((sum, item) => sum + (item.remainingGrams || 0), 0);
 
   const stats = [
-    { label: 'Tổng PLA', value: `${(totalPLA / 1000).toFixed(1)}kg`, icon: Package, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-    { label: 'Tổng PETG', value: `${(totalPETG / 1000).toFixed(1)}kg`, icon: Package, color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
-    { label: 'Sắp hết hàng', value: `${lowStock} cuộn`, icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-    { label: 'Tổng cuộn', value: `${inventory.length}`, icon: History, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+    { label: copy.stats.pla.label, value: `${(totalPLA / 1000).toFixed(1)}kg`, note: copy.stats.pla.note, icon: 'solar:box-bold-duotone', accent: 'text-sky-700 bg-sky-100/80 dark:text-sky-100 dark:bg-sky-300/10' },
+    { label: copy.stats.petg.label, value: `${(totalPETG / 1000).toFixed(1)}kg`, note: copy.stats.petg.note, icon: 'solar:layers-bold-duotone', accent: 'text-indigo-700 bg-indigo-100/80 dark:text-indigo-100 dark:bg-indigo-300/10' },
+    { label: copy.stats.low.label, value: `${lowStock}`, note: copy.stats.low.note, icon: 'solar:danger-triangle-bold-duotone', accent: 'text-amber-700 bg-amber-100/80 dark:text-amber-100 dark:bg-amber-300/10' },
+    { label: copy.stats.tracked.label, value: `${inventory.length}`, note: copy.stats.tracked.note, icon: 'solar:archive-bold-duotone', accent: 'text-[var(--landing-accent)] bg-[rgba(239,125,87,0.12)] dark:text-[#ffd7cc] dark:bg-[rgba(239,125,87,0.12)]' },
   ];
 
   const saveEdit = async (id: string) => {
     setSaving(true);
     try {
-      await api.updateInventory(id, { remainingGrams: parseFloat(editGrams) });
+      await api.updateInventory(id, { remainingGrams: Number.parseFloat(editGrams) });
       await fetchInventory();
       setEditId(null);
     } catch (err: any) {
@@ -93,10 +116,10 @@ export const AdminInventory: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Xóa cuộn nhựa này?')) return;
+    if (!confirm(copy.deleteConfirm)) return;
     try {
       await api.deleteInventory(id);
-      setInventory(prev => prev.filter(i => i.id !== id));
+      setInventory((current) => current.filter((item) => item.id !== id));
     } catch (err: any) {
       alert(err.message);
     }
@@ -117,358 +140,246 @@ export const AdminInventory: React.FC = () => {
     }
   };
 
-  const groupedByArea = AREAS.map(area => ({
+  const groupedByArea = AREAS.map((area) => ({
     area,
-    items: filtered.filter(i => (i.area || 'Mỹ Đình') === area),
-  })).filter(g => g.items.length > 0 || !search);
+    items: filtered.filter((item) => (item.area || 'My Dinh') === area),
+  })).filter((group) => group.items.length > 0 || !search);
+
+  const statusTone = (status: string) => cn(
+    'inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]',
+    status === 'In Stock'
+      ? 'border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200'
+      : status === 'Low'
+        ? 'border-amber-200 bg-amber-100 text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200'
+        : 'border-red-200 bg-red-100 text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200'
+  );
+
+  const renderStockMeter = (item: any) => (
+    <div className="flex flex-col gap-2">
+      <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-[var(--landing-muted)]">
+        <span>{fillText(copy.stockRemaining, { count: item.remainingGrams })}</span>
+        <span>{fillText(copy.stockThreshold, { count: item.threshold })}</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/8">
+        <div className={cn('h-full rounded-full transition-all', item.remainingGrams < 200 ? 'bg-red-500' : item.remainingGrams < 500 ? 'bg-amber-500' : 'bg-emerald-500')} style={{ width: `${Math.min((item.remainingGrams / 1000) * 100, 100)}%` }} />
+      </div>
+    </div>
+  );
 
   return (
-    <div className="space-y-8">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className={cn("p-2.5 rounded-xl", stat.bg)}>
-                <stat.icon size={20} className={stat.color} />
+    <div className="app-admin-squared app-admin-compact space-y-6">
+      <section className="app-panel app-hover-box relative overflow-hidden rounded-[32px] px-5 py-6 sm:px-8 sm:py-8">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <p className="app-eyebrow">{copy.heroEyebrow}</p>
+              <h1 className="app-display-sm text-slate-900 dark:text-[var(--landing-text)]">{copy.heroTitle}</h1>
+              <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{copy.heroDesc}</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={fetchInventory} className="app-secondary-button inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[18px] px-5 text-sm font-bold"><RefreshCw size={16} />{copy.refresh}</button>
+              <button onClick={() => setShowAdd((current) => !current)} className="app-primary-button inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[18px] px-5 text-sm font-bold"><Plus size={16} />{showAdd ? copy.closeAdd : copy.add}</button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {stats.map((stat) => (
+              <div key={stat.label} className="app-hover-box app-metric-card rounded-[26px]">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="app-metric-card-label">{stat.label}</p>
+                    <p className="mt-4 app-metric-card-value">{stat.value}</p>
+                  </div>
+                  <div className={cn('flex h-12 w-12 items-center justify-center rounded-[18px]', stat.accent)}><AppIcon icon={stat.icon} size={24} /></div>
+                </div>
+                <p className="app-metric-card-note">{stat.note}</p>
               </div>
-              <ArrowUpRight size={16} className="text-slate-300" />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{stat.value}</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{stat.label}</p>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      </section>
 
-      {/* Add Form */}
       {showAdd && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Thêm cuộn nhựa mới</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Khu vực</label>
-              <select
-                value={newItem.area}
-                onChange={e => setNewItem({ ...newItem, area: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
-              >
-                {AREAS.map(a => <option key={a}>{a}</option>)}
-              </select>
+        <section className="app-panel app-hover-box rounded-[32px] px-5 py-6 sm:px-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-2">
+              <p className="app-eyebrow">{copy.newEyebrow}</p>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-[var(--landing-text)]">{copy.newTitle}</h2>
+              <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{copy.newDesc}</p>
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Loại nhựa</label>
-              <select
-                value={newItem.material}
-                onChange={e => setNewItem({ ...newItem, material: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
-              >
-                {MATERIALS.map(m => <option key={m}>{m}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Thương hiệu</label>
-              <input
-                type="text"
-                placeholder="Bambu, Elegoo..."
-                value={newItem.brand}
-                onChange={e => setNewItem({ ...newItem, brand: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Màu sắc</label>
-              <select
-                value={COLOR_PRESETS.includes(newItem.color) ? newItem.color : '__custom'}
-                onChange={e => {
-                  if (e.target.value === '__custom') setNewItem({ ...newItem, color: '' });
-                  else setNewItem({ ...newItem, color: e.target.value });
-                }}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
-              >
-                <option value="" disabled>Chọn màu...</option>
-                {COLOR_PRESETS.map(c => <option key={c} value={c}>{c}</option>)}
-                <option value="__custom">Tùy chỉnh...</option>
-              </select>
-              {!COLOR_PRESETS.includes(newItem.color) && (
-                <input
-                  type="text"
-                  placeholder="Nhập tên màu..."
-                  value={newItem.color}
-                  onChange={e => setNewItem({ ...newItem, color: e.target.value })}
-                  className="w-full mt-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
-                />
-              )}
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Khối lượng (g)</label>
-              <input
-                type="number"
-                value={newItem.remainingGrams}
-                onChange={e => setNewItem({ ...newItem, remainingGrams: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Ngưỡng cảnh báo (g)</label>
-              <input
-                type="number"
-                value={newItem.threshold}
-                onChange={e => setNewItem({ ...newItem, threshold: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Vị trí tủ</label>
-              <input
-                type="text"
-                placeholder="Tủ A1..."
-                value={newItem.location}
-                onChange={e => setNewItem({ ...newItem, location: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
-              />
-            </div>
+            <span className="app-inline-pill rounded-full">{copy.requiredHint}</span>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 mt-4">
-            <button
-              onClick={handleAdd}
-              disabled={saving}
-              className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-60"
-            >
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-              Lưu
-            </button>
-            <button
-              onClick={() => setShowAdd(false)}
-              className="px-6 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-sm font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-            >
-              Hủy
-            </button>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <label className="grid gap-2"><span className="app-overline">{copy.area}</span><select value={newItem.area} onChange={(event) => setNewItem({ ...newItem, area: event.target.value })} className="app-control rounded-[18px]">{AREAS.map((area) => <option key={area} value={area}>{areaLabel(area)}</option>)}</select></label>
+            <label className="grid gap-2"><span className="app-overline">{copy.material}</span><select value={newItem.material} onChange={(event) => setNewItem({ ...newItem, material: event.target.value })} className="app-control rounded-[18px]">{MATERIALS.map((material) => <option key={material}>{material}</option>)}</select></label>
+            <label className="grid gap-2"><span className="app-overline">{copy.brand}</span><input type="text" value={newItem.brand} onChange={(event) => setNewItem({ ...newItem, brand: event.target.value })} placeholder={copy.brandPlaceholder} className="app-control rounded-[18px]" /></label>
+            <label className="grid gap-2"><span className="app-overline">{copy.location}</span><input type="text" value={newItem.location} onChange={(event) => setNewItem({ ...newItem, location: event.target.value })} placeholder={copy.locationPlaceholder} className="app-control rounded-[18px]" /></label>
+            <label className="grid gap-2 xl:col-span-2">
+              <span className="app-overline">{copy.color}</span>
+              <select value={COLOR_PRESETS.some((color) => color.value === newItem.color) ? newItem.color : '__custom'} onChange={(event) => { if (event.target.value === '__custom') setNewItem({ ...newItem, color: '' }); else setNewItem({ ...newItem, color: event.target.value }); }} className="app-control rounded-[18px]">
+                <option value="" disabled>{copy.selectPresetColor}</option>
+                {COLOR_PRESETS.map((color) => <option key={color.value} value={color.value}>{color.label}</option>)}
+                <option value="__custom">{copy.customColor}</option>
+              </select>
+              {!COLOR_PRESETS.some((color) => color.value === newItem.color) && <input type="text" value={newItem.color} onChange={(event) => setNewItem({ ...newItem, color: event.target.value })} placeholder={copy.customColorPlaceholder} className="app-control rounded-[18px]" />}
+            </label>
+            <label className="grid gap-2"><span className="app-overline">{copy.remainingGrams}</span><input type="number" value={newItem.remainingGrams} onChange={(event) => setNewItem({ ...newItem, remainingGrams: Number.parseInt(event.target.value, 10) || 0 })} className="app-control rounded-[18px]" /></label>
+            <label className="grid gap-2"><span className="app-overline">{copy.threshold}</span><input type="number" value={newItem.threshold} onChange={(event) => setNewItem({ ...newItem, threshold: Number.parseInt(event.target.value, 10) || 0 })} className="app-control rounded-[18px]" /></label>
           </div>
-        </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button onClick={handleAdd} disabled={saving} className="app-primary-button inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[18px] px-5 text-sm font-bold disabled:opacity-60">{saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}{copy.saveReel}</button>
+            <button onClick={() => setShowAdd(false)} className="app-secondary-button inline-flex min-h-[50px] items-center justify-center rounded-[18px] px-5 text-sm font-bold">{copy.collapseForm}</button>
+          </div>
+        </section>
       )}
 
-      {/* Toolbar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Danh mục vật liệu</h3>
-          <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Tìm màu, thương hiệu, mã..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-52"
-            />
+      <section className="app-panel app-hover-box overflow-hidden rounded-[32px]">
+        <div className="flex flex-col gap-4 px-5 py-5 sm:px-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <p className="app-eyebrow">{copy.boardEyebrow}</p>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-[var(--landing-text)]">{copy.boardTitle}</h2>
+            <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{copy.boardDesc}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="app-inline-pill rounded-full">{fillText(copy.visibleCount, { count: filtered.length })}</span>
+            <span className="app-inline-pill rounded-full">{fillText(copy.reviewCount, { count: lowStock })}</span>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <button
-            onClick={fetchInventory}
-            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
-          >
-            <RefreshCw size={14} />
-            Làm mới
-          </button>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none"
-          >
-            <Plus size={14} />
-            Thêm cuộn mới
-          </button>
-        </div>
-      </div>
 
-      {/* Inventory grouped by area */}
-      {loading ? (
-        <div className="flex items-center justify-center py-16 text-slate-400">
-          <Loader2 size={24} className="animate-spin mr-2" />
-          <span className="text-sm">Đang tải dữ liệu...</span>
+        <div className="app-toolbar-shell grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="relative block max-w-xl">
+            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input type="text" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={copy.searchPlaceholder} className="app-control rounded-[18px] pl-11 pr-4" />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <span className="app-inline-pill rounded-full">PLA {(totalPLA / 1000).toFixed(1)}kg</span>
+            <span className="app-inline-pill rounded-full">PETG {(totalPETG / 1000).toFixed(1)}kg</span>
+          </div>
         </div>
-      ) : (
-        groupedByArea.map(({ area, items }) => (
-          <div key={area} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-            {/* Area header */}
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50">
-              <MapPin size={16} className="text-blue-500" />
-              <h4 className="font-bold text-slate-800 dark:text-slate-100">{area}</h4>
-              <span className="ml-2 text-xs text-slate-400">{items.length} cuộn</span>
-            </div>
 
-            {items.length === 0 ? (
-              <div className="py-10 text-center text-slate-400 text-sm">Chưa có vật liệu nào tại khu vực này</div>
-            ) : (
-              <>
-                <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
-                  {items.map((item) => (
-                    <div key={item.id} className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-slate-900 dark:text-white">{item.id}</p>
-                          <p className="text-xs text-slate-500 mt-1">{item.material} · {item.color}</p>
-                          <p className="text-xs text-slate-400 mt-1">{item.brand || 'KhÃ´ng rÃµ thÆ°Æ¡ng hiá»‡u'}</p>
+        {loading ? (
+          <div className="app-empty-state"><Loader2 size={28} className="animate-spin" /><p className="text-sm font-semibold">{copy.loading}</p></div>
+        ) : (
+          <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-2 xl:items-start">
+            {groupedByArea.map(({ area, items }) => {
+              const areaLowStock = items.filter((item) => item.status === 'Low' || item.status === 'Out of Stock').length;
+              return (
+                <section key={area} className="app-panel-soft app-hover-box overflow-hidden rounded-[28px]">
+                  <div className="flex flex-col gap-4 border-b border-[rgba(30,23,19,0.08)] px-5 py-5 dark:border-white/8 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-sky-100 text-sky-700 dark:bg-sky-400/10 dark:text-sky-200"><MapPin size={18} /></div>
+                        <div>
+                          <p className="app-overline">{copy.areaEyebrow}</p>
+                          <h3 className="mt-1 text-xl font-black text-slate-900 dark:text-[var(--landing-text)]">{areaLabel(area)}</h3>
                         </div>
-                        <span className={cn(
-                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border",
-                          item.status === 'In Stock' ? "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-900/30 dark:text-emerald-400" :
-                            item.status === 'Low' ? "bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-400" :
-                              "bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400"
-                        )}>
-                          {statusLabel[item.status] || item.status}
-                        </span>
                       </div>
-                      <div className="space-y-2">
-                        {editId === item.id ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              value={editGrams}
-                              onChange={e => setEditGrams(e.target.value)}
-                              className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-blue-400 rounded text-xs outline-none"
-                              autoFocus
-                            />
-                            <button onClick={() => saveEdit(item.id)} disabled={saving} className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded">
-                              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                            </button>
-                            <button onClick={() => setEditId(null)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="space-y-1.5">
-                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                              <span>{item.remainingGrams}g</span>
-                              <span>1000g</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                              <div
-                                className={cn(
-                                  "h-full rounded-full transition-all",
-                                  item.remainingGrams < 200 ? "bg-red-500" : item.remainingGrams < 500 ? "bg-amber-500" : "bg-emerald-500"
-                                )}
-                                style={{ width: `${Math.min((item.remainingGrams / 1000) * 100, 100)}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-1 gap-1 text-xs text-slate-500 dark:text-slate-400">
-                        <div>Vá»‹ trÃ­ tá»§: {item.location || 'â€”'}</div>
-                        <div>NgÆ°á»¡ng cáº£nh bÃ¡o: {item.threshold}g</div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                          onClick={() => { setEditId(item.id); setEditGrams(item.remainingGrams.toString()); }}
-                          className="px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/20 rounded-xl"
-                        >
-                          Cáº­p nháº­t
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 dark:bg-red-900/20 rounded-xl"
-                        >
-                          XÃ³a
-                        </button>
-                      </div>
+                      <p className="text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{fillText(copy.areaNote, { count: items.length })}</p>
                     </div>
-                  ))}
-                </div>
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-slate-100 dark:border-slate-800">
-                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mã</th>
-                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Loại nhựa</th>
-                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Thương hiệu</th>
-                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Màu sắc</th>
-                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Còn lại</th>
-                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Vị trí tủ</th>
-                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Trạng thái</th>
-                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {items.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white">{item.id}</td>
-                        <td className="px-6 py-4 text-xs text-slate-600 dark:text-slate-300 font-medium">{item.material}</td>
-                        <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{item.brand || <span className="text-slate-300">—</span>}</td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs text-slate-600 dark:text-slate-300">{item.color}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          {editId === item.id ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                value={editGrams}
-                                onChange={e => setEditGrams(e.target.value)}
-                                className="w-24 px-2 py-1 bg-white dark:bg-slate-900 border border-blue-400 rounded text-xs outline-none"
-                                autoFocus
-                              />
-                              <button onClick={() => saveEdit(item.id)} disabled={saving} className="p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded">
-                                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                              </button>
-                              <button onClick={() => setEditId(null)} className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-                                <X size={14} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col gap-1.5 w-32">
-                              <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                <span>{item.remainingGrams}g</span>
-                                <span>1000g</span>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="app-inline-pill rounded-full">{fillText(copy.areaCount, { count: items.length })}</span>
+                      <span className="app-inline-pill rounded-full">{fillText(copy.lowCount, { count: areaLowStock })}</span>
+                    </div>
+                  </div>
+
+                  {items.length === 0 ? (
+                    <div className="app-empty-state min-h-[180px]"><Package size={38} strokeWidth={1.4} /><p className="text-sm font-semibold">{copy.emptyArea}</p></div>
+                  ) : (
+                    <>
+                      <div className="grid gap-3 p-4 md:hidden">
+                        {items.map((item) => (
+                          <article key={item.id} className="app-panel app-hover-box rounded-[24px] p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="app-overline">#{item.id}</p>
+                                <p className="mt-2 text-lg font-black text-slate-900 dark:text-[var(--landing-text)]">{item.material} / {item.color}</p>
+                                <p className="mt-1 text-xs text-slate-500 dark:text-[var(--landing-muted)]">{item.brand || copy.noBrand} / {item.location || copy.noShelf}</p>
                               </div>
-                              <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                <div
-                                  className={cn(
-                                    "h-full rounded-full transition-all",
-                                    item.remainingGrams < 200 ? "bg-red-500" : item.remainingGrams < 500 ? "bg-amber-500" : "bg-emerald-500"
-                                  )}
-                                  style={{ width: `${Math.min((item.remainingGrams / 1000) * 100, 100)}%` }}
-                                />
-                              </div>
+                              <span className={statusTone(item.status)}>{statusLabels[item.status] || item.status}</span>
                             </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{item.location || '—'}</td>
-                        <td className="px-6 py-4">
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border",
-                            item.status === 'In Stock' ? "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-900/30 dark:text-emerald-400" :
-                              item.status === 'Low' ? "bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-400" :
-                                "bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400"
-                          )}>
-                            {statusLabel[item.status] || item.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => { setEditId(item.id); setEditGrams(item.remainingGrams.toString()); }}
-                              className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-all"
-                            >
-                              Cập nhật
-                            </button>
-                            <button
-                              onClick={() => handleDelete(item.id)}
-                              className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  </table>
-                </div>
-              </>
-            )}
+                            <div className="mt-4">{renderStockMeter(item)}</div>
+                            <div className="mt-4 grid gap-3">
+                              {editId === item.id ? (
+                                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                                  <input type="number" value={editGrams} onChange={(event) => setEditGrams(event.target.value)} className="app-control rounded-[16px]" autoFocus />
+                                  <button onClick={() => saveEdit(item.id)} disabled={saving} className="app-primary-button inline-flex min-h-[44px] items-center justify-center rounded-[16px] px-4 text-sm font-bold disabled:opacity-60">{saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}</button>
+                                  <button onClick={() => setEditId(null)} className="app-secondary-button inline-flex min-h-[44px] items-center justify-center rounded-[16px] px-4 text-sm font-bold"><X size={14} /></button>
+                                </div>
+                              ) : (
+                                <div className="flex flex-wrap gap-2">
+                                  <button onClick={() => { setEditId(item.id); setEditGrams(item.remainingGrams.toString()); }} className="app-secondary-button inline-flex min-h-[42px] items-center justify-center rounded-[16px] px-4 text-xs font-bold uppercase tracking-[0.16em]">{copy.updateStock}</button>
+                                  <button onClick={() => handleDelete(item.id)} className="inline-flex min-h-[42px] items-center justify-center rounded-[16px] border border-red-200 bg-red-100 px-4 text-xs font-bold uppercase tracking-[0.16em] text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">{copy.deleteReel}</button>
+                                </div>
+                              )}
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+
+                      <div className="hidden overflow-x-auto md:block">
+                        <table className="app-table min-w-full text-left">
+                          <thead>
+                            <tr>
+                              <th>{copy.reelId}</th>
+                              <th>{copy.material}</th>
+                              <th>{copy.brand}</th>
+                              <th>{copy.color}</th>
+                              <th>{copy.boardEyebrow.replace('// ', '')}</th>
+                              <th>{copy.location}</th>
+                              <th>{shared.statusLabel}</th>
+                              <th className="text-right">{copy.actions}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {items.map((item) => (
+                              <tr key={item.id}>
+                                <td className="px-6 py-5 text-xs font-black text-slate-900 dark:text-[var(--landing-text)]">{item.id}</td>
+                                <td className="px-6 py-5 text-xs font-semibold text-slate-700 dark:text-white/80">{item.material}</td>
+                                <td className="px-6 py-5 text-xs text-slate-500 dark:text-[var(--landing-muted)]">{item.brand || copy.noBrand}</td>
+                                <td className="px-6 py-5 text-xs text-slate-500 dark:text-[var(--landing-muted)]">{item.color}</td>
+                                <td className="px-6 py-5">
+                                  {editId === item.id ? (
+                                    <div className="grid gap-2 lg:grid-cols-[120px_auto_auto]">
+                                      <input type="number" value={editGrams} onChange={(event) => setEditGrams(event.target.value)} className="app-control rounded-[14px]" autoFocus />
+                                      <button onClick={() => saveEdit(item.id)} disabled={saving} className="app-primary-button inline-flex min-h-[40px] items-center justify-center rounded-[14px] px-4 text-sm font-bold disabled:opacity-60">{saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}</button>
+                                      <button onClick={() => setEditId(null)} className="app-secondary-button inline-flex min-h-[40px] items-center justify-center rounded-[14px] px-4 text-sm font-bold"><X size={14} /></button>
+                                    </div>
+                                  ) : renderStockMeter(item)}
+                                </td>
+                                <td className="px-6 py-5 text-xs text-slate-500 dark:text-[var(--landing-muted)]">{item.location || copy.noShelf}</td>
+                                <td className="px-6 py-5"><span className={statusTone(item.status)}>{statusLabels[item.status] || item.status}</span></td>
+                                <td className="px-6 py-5">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button onClick={() => { setEditId(item.id); setEditGrams(item.remainingGrams.toString()); }} className="app-secondary-button inline-flex h-10 items-center justify-center rounded-[14px] px-4 text-xs font-bold uppercase tracking-[0.16em]">{copy.updateStock}</button>
+                                    <button onClick={() => handleDelete(item.id)} className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-red-200 bg-red-100 text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200"><Trash2 size={14} /></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </section>
+              );
+            })}
           </div>
-        ))
-      )}
+        )}
+      </section>
+
+      <section className="app-panel-soft app-hover-box rounded-[28px] border border-amber-200/70 px-5 py-4 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200 sm:px-6">
+        <div className="flex items-start gap-3">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em]">{copy.disciplineEyebrow}</p>
+            <p className="mt-1">{copy.disciplineNote}</p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
+

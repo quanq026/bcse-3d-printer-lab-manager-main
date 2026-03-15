@@ -1,26 +1,56 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Users,
-  Search,
-  CheckCircle2,
-  XCircle,
-  Shield,
-  UserCheck,
-  Loader2,
-  RefreshCw,
-  Mail,
-  Phone,
-  Calendar,
-  Trash2,
   AlertTriangle,
   Ban,
+  Calendar,
+  CheckCircle2,
+  Loader2,
+  Mail,
+  Phone,
+  RefreshCw,
+  Search,
+  Shield,
+  Trash2,
+  UserCheck,
+  Users,
+  XCircle,
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { AppIcon } from '../components/AppIcon';
+import { useLang } from '../contexts/LanguageContext';
 import { api } from '../lib/api';
+import { fillText, getUiText } from '../lib/uiText';
+import { cn } from '../lib/utils';
 
 const ROLE_OPTIONS = ['Student', 'Moderator', 'Admin'];
 
+function formatDate(value?: string, locale = 'vi-VN', fallback = 'No date') {
+  if (!value) return fallback;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed);
+}
+
+function formatDateTime(value?: string, locale = 'vi-VN', fallback = 'Permanent') {
+  if (!value) return fallback;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(parsed);
+}
+
 export const AdminUsers: React.FC = () => {
+  const { lang } = useLang();
+  const copy = getUiText(lang).adminUsers;
+  const locale = lang === 'JP' ? 'en-US' : 'vi-VN';
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -43,7 +73,9 @@ export const AdminUsers: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const doUpdate = async (id: string, data: any) => {
     setActionLoading(id);
@@ -58,7 +90,7 @@ export const AdminUsers: React.FC = () => {
   };
 
   const doDelete = async (id: string, name: string) => {
-    if (!confirm(`Xóa tài khoản "${name}"? Hành động này không thể hoàn tác và sẽ xóa toàn bộ yêu cầu in của người dùng này.`)) return;
+    if (!confirm(fillText(copy.deleteConfirm, { name }))) return;
     setActionLoading(id);
     try {
       await api.deleteUser(id);
@@ -74,11 +106,16 @@ export const AdminUsers: React.FC = () => {
     if (!banModal || !banReason.trim()) return;
     const { user, type } = banModal;
     const banUntil = type === 'temporary'
-      ? new Date(Date.now() + parseInt(banDays) * 86400000).toISOString()
+      ? new Date(Date.now() + Number.parseInt(banDays, 10) * 86400000).toISOString()
       : null;
+
     setActionLoading(user.id);
     try {
-      await api.updateUser(user.id, { status: 'suspended', banReason: banReason.trim(), banUntil });
+      await api.updateUser(user.id, {
+        status: 'suspended',
+        banReason: banReason.trim(),
+        banUntil,
+      });
       setBanModal(null);
       setBanReason('');
       await fetchUsers();
@@ -101,491 +138,522 @@ export const AdminUsers: React.FC = () => {
     }
   };
 
-  const filtered = users.filter(u => {
-    const matchSearch = !search ||
-      u.fullName?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase()) ||
-      u.studentId?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === 'all' || u.status === filterStatus;
+  const filtered = useMemo(() => users.filter((user) => {
+    const matchSearch = !search
+      || user.fullName?.toLowerCase().includes(search.toLowerCase())
+      || user.email?.toLowerCase().includes(search.toLowerCase())
+      || user.studentId?.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = filterStatus === 'all' || user.status === filterStatus;
     return matchSearch && matchStatus;
-  });
+  }), [filterStatus, search, users]);
 
-  const pendingCount = users.filter(u => u.status === 'pending').length;
+  const pendingCount = users.filter((user) => user.status === 'pending').length;
+  const suspendedUsers = users.filter((user) => user.status === 'suspended');
+  const activeCount = users.filter((user) => user.status === 'active').length;
+  const staffCount = users.filter((user) => user.role === 'Admin' || user.role === 'Moderator').length;
+
+  const heroStats = [
+    {
+      label: copy.stats.total.label,
+      value: `${users.length}`,
+      note: copy.stats.total.note,
+      icon: 'solar:users-group-rounded-bold-duotone',
+      accent: 'text-sky-700 bg-sky-100/80 dark:text-sky-100 dark:bg-sky-300/10',
+    },
+    {
+      label: copy.stats.active.label,
+      value: `${activeCount}`,
+      note: copy.stats.active.note,
+      icon: 'solar:shield-check-bold-duotone',
+      accent: 'text-emerald-700 bg-emerald-100/80 dark:text-emerald-100 dark:bg-emerald-300/10',
+    },
+    {
+      label: copy.stats.pending.label,
+      value: `${pendingCount}`,
+      note: copy.stats.pending.note,
+      icon: 'solar:clock-circle-bold-duotone',
+      accent: 'text-amber-700 bg-amber-100/80 dark:text-amber-100 dark:bg-amber-300/10',
+    },
+    {
+      label: copy.stats.staff.label,
+      value: `${staffCount}`,
+      note: copy.stats.staff.note,
+      icon: 'solar:user-id-bold-duotone',
+      accent: 'text-[var(--landing-accent)] bg-[rgba(239,125,87,0.12)] dark:text-[#ffd7cc] dark:bg-[rgba(239,125,87,0.12)]',
+    },
+  ];
 
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
-      active: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-      pending: 'bg-amber-50 text-amber-700 border-amber-100',
-      suspended: 'bg-red-50 text-red-600 border-red-100',
+      active: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-200 dark:border-emerald-400/20',
+      pending: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-400/10 dark:text-amber-200 dark:border-amber-400/20',
+      suspended: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-400/10 dark:text-red-200 dark:border-red-400/20',
     };
-    return map[status] || 'bg-slate-50 text-slate-500 border-slate-100';
+    return map[status] || 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-white/6 dark:text-slate-200 dark:border-white/10';
   };
 
   const roleBadge = (role: string) => {
     const map: Record<string, string> = {
-      Admin: 'bg-purple-50 text-purple-700 border-purple-100',
-      Moderator: 'bg-blue-50 text-blue-700 border-blue-100',
-      Student: 'bg-slate-50 text-slate-600 border-slate-100',
+      Admin: 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-400/10 dark:text-violet-200 dark:border-violet-400/20',
+      Moderator: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-400/10 dark:text-sky-200 dark:border-sky-400/20',
+      Student: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-white/6 dark:text-slate-200 dark:border-white/10',
     };
-    return map[role] || 'bg-slate-50 text-slate-500 border-slate-100';
+    return map[role] || 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-white/6 dark:text-slate-200 dark:border-white/10';
   };
 
-  const suspendedUsers = users.filter(u => u.status === 'suspended');
+  const renderActions = (user: any, compact = false) => {
+    if (actionLoading === user.id) {
+      return <Loader2 size={16} className="animate-spin text-slate-400" />;
+    }
+
+    const buttonClass = compact
+      ? 'min-h-[38px] px-3 text-[11px]'
+      : 'h-10 w-10';
+
+    return (
+      <>
+        {user.status === 'pending' && (
+          <button
+            onClick={() => doUpdate(user.id, { status: 'active' })}
+            className={cn(
+              'rounded-2xl border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200',
+              buttonClass,
+              compact ? 'font-bold' : 'inline-flex items-center justify-center'
+            )}
+            title={copy.approve}
+          >
+            {compact ? copy.approve : <CheckCircle2 size={17} />}
+          </button>
+        )}
+        {user.status === 'active' && (
+          <button
+            onClick={() => {
+              setBanModal({ user, type: 'temporary' });
+              setBanReason('');
+              setBanDays('7');
+            }}
+            className={cn(
+              'rounded-2xl border border-amber-200 bg-amber-100 text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200',
+              buttonClass,
+              compact ? 'font-bold' : 'inline-flex items-center justify-center'
+            )}
+            title={copy.suspend}
+          >
+            {compact ? copy.suspend : <XCircle size={17} />}
+          </button>
+        )}
+        {user.status === 'suspended' && (
+          <button
+            onClick={() => doUnban(user.id)}
+            className={cn(
+              'rounded-2xl border border-sky-200 bg-sky-100 text-sky-700 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200',
+              buttonClass,
+              compact ? 'font-bold' : 'inline-flex items-center justify-center'
+            )}
+            title={copy.restore}
+          >
+            {compact ? copy.restore : <Shield size={17} />}
+          </button>
+        )}
+        <button
+          onClick={() => doDelete(user.id, user.fullName)}
+          className={cn(
+            'rounded-2xl border border-red-200 bg-red-100 text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200',
+            buttonClass,
+            compact ? 'font-bold' : 'inline-flex items-center justify-center'
+          )}
+          title={copy.delete}
+        >
+          {compact ? copy.delete : <Trash2 size={16} />}
+        </button>
+      </>
+    );
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full sm:w-fit">
-        {([['users', 'Người dùng'], ['warnings', 'Bảng cảnh cáo']] as const).map(([tab, label]) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              'px-4 py-2 rounded-lg text-xs font-bold transition-all',
-              activeTab === tab
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            )}
-          >
-            {label}
-            {tab === 'warnings' && suspendedUsers.length > 0 && (
-              <span className="ml-1.5 px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-black rounded-full">{suspendedUsers.length}</span>
-            )}
-          </button>
-        ))}
-      </div>
+    <div className="app-admin-squared app-admin-compact space-y-6">
+      <section className="app-panel app-hover-box relative overflow-hidden rounded-[32px] px-5 py-6 sm:px-8 sm:py-8">
+        <div className="space-y-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="space-y-3">
+              <p className="app-eyebrow">{copy.heroEyebrow}</p>
+              <h1 className="app-display-sm max-w-4xl text-slate-900 dark:text-[var(--landing-text)]">{copy.heroTitle}</h1>
+              <p className="max-w-3xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{copy.heroDesc}</p>
+            </div>
+            <div className="app-tab-strip rounded-[26px]">
+              {([
+                ['users', copy.tabs.users],
+                ['warnings', copy.tabs.warnings],
+              ] as const).map(([tab, label]) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn('app-tab-button rounded-[20px]', activeTab === tab && 'is-active')}
+                >
+                  {label}
+                  {tab === 'warnings' && suspendedUsers.length > 0 ? ` (${suspendedUsers.length})` : ''}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* ── Warning Board Tab ── */}
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {heroStats.map((stat) => (
+              <div key={stat.label} className="app-hover-box app-metric-card rounded-[26px]">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="app-metric-card-label">{stat.label}</p>
+                    <p className="mt-4 app-metric-card-value">{stat.value}</p>
+                  </div>
+                  <div className={cn('flex h-12 w-12 items-center justify-center rounded-[18px]', stat.accent)}>
+                    <AppIcon icon={stat.icon} size={24} />
+                  </div>
+                </div>
+                <p className="app-metric-card-note">{stat.note}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {activeTab === 'warnings' && (
         <div className="space-y-4">
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 rounded-2xl flex items-start gap-3">
-            <AlertTriangle size={20} className="text-red-600 shrink-0" />
-            <p className="text-sm text-red-800 dark:text-red-400 font-bold">
-              {suspendedUsers.length} tài khoản đang bị cấm sử dụng máy in
-            </p>
-          </div>
-          {suspendedUsers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
-              <Shield size={36} strokeWidth={1} />
-              <p className="text-sm">Không có vi phạm nào</p>
+          <section className="app-panel-soft rounded-[28px] border border-red-200/70 px-5 py-4 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-400/8 dark:text-red-200 sm:px-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                <p className="text-xs font-black uppercase tracking-[0.24em]">{copy.riskEyebrow}</p>
+                <p>{fillText(copy.riskCount, { count: suspendedUsers.length })}</p>
+              </div>
             </div>
+          </section>
+
+          {suspendedUsers.length === 0 ? (
+            <section className="app-panel rounded-[30px]">
+              <div className="app-empty-state">
+                <Shield size={42} strokeWidth={1.4} />
+                <p className="text-sm font-semibold">{copy.noSuspended}</p>
+                <p className="max-w-md text-xs leading-6">{copy.noSuspendedNote}</p>
+              </div>
+            </section>
           ) : (
-            <div className="space-y-3">
-              {suspendedUsers.map(user => (
-                <div key={user.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-red-200 dark:border-red-900/30 p-5 shadow-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/40 flex items-center justify-center text-red-600 font-bold text-sm shrink-0">
+            <div className="grid gap-4 xl:grid-cols-2">
+              {suspendedUsers.map((user) => (
+                <section
+                  key={user.id}
+                  className="app-panel app-hover-box rounded-[30px] border border-red-200/70 px-5 py-5 dark:border-red-400/20 sm:px-6"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-red-100 text-red-700 dark:bg-red-400/10 dark:text-red-200">
                         <Ban size={18} />
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-slate-900 dark:text-white truncate">{user.fullName}</p>
-                        <p className="text-xs text-slate-500">{user.email} {user.studentId ? `· ${user.studentId}` : ''}</p>
+                      <div className="min-w-0 space-y-2">
+                        <div>
+                          <p className="text-base font-black text-slate-900 dark:text-[var(--landing-text)]">{user.fullName}</p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-[var(--landing-muted)]">{user.email}{user.studentId ? ` / ${user.studentId}` : ''}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <span className={cn('inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em]', roleBadge(user.role))}>
+                            {copy.roleLabels[user.role as keyof typeof copy.roleLabels] || user.role}
+                          </span>
+                          <span className="inline-flex items-center rounded-full border border-red-200 bg-red-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">
+                            {user.banUntil ? copy.temporaryHold : copy.permanentHold}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                      {actionLoading === user.id ? (
-                        <Loader2 size={16} className="animate-spin text-slate-400" />
-                      ) : (
-                        <button
-                          onClick={() => doUnban(user.id)}
-                          className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-all"
-                        >
-                          Bỏ cấm
-                        </button>
-                      )}
+                    <button
+                      onClick={() => doUnban(user.id)}
+                      className="app-secondary-button inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[18px] px-4 text-sm font-bold"
+                    >
+                      {actionLoading === user.id ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
+                      {copy.restoreAccess}
+                    </button>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-[22px] border border-[rgba(30,23,19,0.08)] bg-white/55 p-4 dark:border-white/8 dark:bg-white/4">
+                      <p className="app-overline">{copy.blockReason}</p>
+                      <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{user.banReason || copy.noReason}</p>
+                    </div>
+                    <div className="rounded-[22px] border border-[rgba(30,23,19,0.08)] bg-white/55 p-4 dark:border-white/8 dark:bg-white/4">
+                      <p className="app-overline">{copy.restrictionWindow}</p>
+                      <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{formatDateTime(user.banUntil, locale, copy.permanent)}</p>
+                      <p className="mt-2 text-xs text-slate-500 dark:text-[var(--landing-muted)]">{copy.restrictionNote}</p>
                     </div>
                   </div>
-                  {user.banReason && (
-                    <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-900/30">
-                      <p className="text-xs font-bold text-red-700 dark:text-red-400 mb-1">Lý do vi phạm:</p>
-                      <p className="text-xs text-red-800 dark:text-red-300">{user.banReason}</p>
-                    </div>
-                  )}
-                  {user.banUntil && (
-                    <p className="mt-2 text-[11px] text-slate-500">
-                      Cấm đến: {new Date(user.banUntil).toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  )}
-                  {!user.banUntil && user.banReason && (
-                    <p className="mt-2 text-[11px] text-red-500 font-bold">Cấm vĩnh viễn</p>
-                  )}
-                </div>
+                </section>
               ))}
             </div>
           )}
         </div>
       )}
 
-      {activeTab === 'users' && <>
-      {/* Header stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Tong nguoi dung', value: users.length, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Dang hoat dong', value: users.filter(u => u.status === 'active').length, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Cho duyet', value: pendingCount, color: 'text-amber-600', bg: 'bg-amber-50' },
-          { label: 'Bi khoa', value: users.filter(u => u.status === 'suspended').length, color: 'text-red-600', bg: 'bg-red-50' },
-        ].map((s, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
-            <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center mb-3', s.bg)}>
-              <Users size={16} className={s.color} />
-            </div>
-            <p className={cn('text-2xl font-black', s.color)}>{s.value}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
-          </div>
-        ))}
-      </div>
+      {activeTab === 'users' && (
+        <div className="space-y-4">
+          {pendingCount > 0 && (
+            <section className="app-panel-soft rounded-[28px] border border-amber-200/70 px-5 py-4 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200 sm:px-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <UserCheck size={18} className="mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.24em]">{copy.approvalEyebrow}</p>
+                    <p className="mt-1">{fillText(copy.approvalCount, { count: pendingCount })}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setFilterStatus('pending')}
+                  className="app-secondary-button inline-flex min-h-[42px] items-center justify-center rounded-[16px] px-4 text-xs font-bold uppercase tracking-[0.16em]"
+                >
+                  {copy.filterPending}
+                </button>
+              </div>
+            </section>
+          )}
 
-      {/* Pending banner */}
-      {pendingCount > 0 && (
-        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <UserCheck size={20} className="text-amber-600" />
-            <p className="text-sm font-bold text-amber-900 dark:text-amber-400">
-              Co {pendingCount} tai khoan dang cho phe duyet
-            </p>
-          </div>
-          <button
-            onClick={() => setFilterStatus('pending')}
-            className="text-xs font-bold text-amber-700 hover:text-amber-900 underline"
-          >
-            Xem ngay
-          </button>
+          <section className="app-panel app-hover-box overflow-hidden rounded-[32px]">
+            <div className="flex flex-col gap-4 px-5 py-6 sm:px-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-2">
+                <p className="app-eyebrow">{copy.boardEyebrow}</p>
+                <h2 className="text-2xl font-black text-slate-900 dark:text-[var(--landing-text)]">{copy.boardTitle}</h2>
+                <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{copy.boardDesc}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="app-inline-pill rounded-full">{fillText(copy.visibleCount, { count: filtered.length })}</span>
+                <span className="app-inline-pill rounded-full">{fillText(copy.suspendedCount, { count: suspendedUsers.length })}</span>
+              </div>
+            </div>
+            <div className="app-toolbar-shell grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                <label className="relative block">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder={copy.searchPlaceholder}
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    className="app-control rounded-[18px] pl-11 pr-4"
+                  />
+                </label>
+                <select
+                  value={filterStatus}
+                  onChange={(event) => setFilterStatus(event.target.value)}
+                  className="app-control rounded-[18px]"
+                >
+                  <option value="all">{copy.allStatuses}</option>
+                  <option value="active">{copy.statusLabels.active}</option>
+                  <option value="pending">{copy.statusLabels.pending}</option>
+                  <option value="suspended">{copy.statusLabels.suspended}</option>
+                </select>
+              </div>
+              <button
+                onClick={fetchUsers}
+                className="app-secondary-button inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[18px] px-4 text-sm font-bold"
+              >
+                <RefreshCw size={16} />
+                {copy.refresh}
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="app-empty-state">
+                <Loader2 size={28} className="animate-spin" />
+                <p className="text-sm font-semibold">{copy.loading}</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="app-empty-state">
+                <Users size={40} strokeWidth={1.4} />
+                <p className="text-sm font-semibold">{copy.noMatch}</p>
+                <p className="max-w-md text-xs leading-6">{copy.noMatchNote}</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-3 p-4 md:hidden">
+                  {filtered.map((user) => (
+                    <article key={user.id} className="app-panel-soft app-hover-box rounded-[26px] p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-sky-100 text-sky-700 dark:bg-sky-400/10 dark:text-sky-200">
+                          {user.fullName?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-black text-slate-900 dark:text-[var(--landing-text)]">{user.fullName}</p>
+                              <p className="mt-1 text-[11px] text-slate-500 dark:text-[var(--landing-muted)]">{user.studentId || copy.noStudentId}</p>
+                            </div>
+                            <span className={cn('inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em]', statusBadge(user.status))}>
+                              {copy.statusLabels[user.status as keyof typeof copy.statusLabels] || user.status}
+                            </span>
+                          </div>
+                          <div className="mt-4 grid gap-2 text-xs text-slate-500 dark:text-[var(--landing-muted)]">
+                            <div className="flex items-center gap-2"><Mail size={12} /> <span className="truncate">{user.email}</span></div>
+                            {user.phone && <div className="flex items-center gap-2"><Phone size={12} /> <span>{user.phone}</span></div>}
+                          <div className="flex items-center gap-2"><Calendar size={12} /> <span>{formatDate(user.createdAt, locale, copy.noDate)}</span></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3">
+                        <select
+                          value={user.role}
+                          disabled={actionLoading === user.id}
+                          onChange={(event) => doUpdate(user.id, { role: event.target.value })}
+                          className={cn('h-11 rounded-[16px] border px-3 text-xs font-bold outline-none', roleBadge(user.role))}
+                        >
+                          {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{copy.roleLabels[role as keyof typeof copy.roleLabels] || role}</option>)}
+                        </select>
+                        <div className="flex flex-wrap gap-2">{renderActions(user, true)}</div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="app-table min-w-full text-left">
+                    <thead>
+                      <tr>
+                        <th>{copy.table.user}</th>
+                        <th>{copy.table.contact}</th>
+                        <th>{copy.table.joined}</th>
+                        <th>{copy.table.role}</th>
+                        <th>{copy.table.status}</th>
+                        <th className="text-right">{copy.table.actions}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((user) => (
+                        <tr key={user.id}>
+                          <td className="px-6 py-5">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-sky-100 text-sky-700 dark:bg-sky-400/10 dark:text-sky-200">
+                                {user.fullName?.charAt(0)?.toUpperCase() || '?'}
+                              </div>
+                              <div>
+                                <p className="text-sm font-black text-slate-900 dark:text-[var(--landing-text)]">{user.fullName}</p>
+                                <p className="mt-1 text-[11px] text-slate-500 dark:text-[var(--landing-muted)]">{user.studentId || copy.noStudentId}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="grid gap-2 text-xs text-slate-500 dark:text-[var(--landing-muted)]">
+                              <div className="flex items-center gap-2"><Mail size={12} /> <span>{user.email}</span></div>
+                              {user.phone && <div className="flex items-center gap-2"><Phone size={12} /> <span>{user.phone}</span></div>}
+                            </div>
+                          </td>
+                                <td className="px-6 py-5 text-xs font-semibold text-slate-500 dark:text-[var(--landing-muted)]">{formatDate(user.createdAt, locale, copy.noDate)}</td>
+                          <td className="px-6 py-5">
+                            <select
+                              value={user.role}
+                              disabled={actionLoading === user.id}
+                              onChange={(event) => doUpdate(user.id, { role: event.target.value })}
+                              className={cn('h-11 rounded-[16px] border px-3 text-xs font-bold outline-none', roleBadge(user.role))}
+                            >
+                              {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{copy.roleLabels[role as keyof typeof copy.roleLabels] || role}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className={cn('inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]', statusBadge(user.status))}>
+                              {copy.statusLabels[user.status as keyof typeof copy.statusLabels] || user.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="flex items-center justify-end gap-2">{renderActions(user)}</div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="relative w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="text"
-                placeholder="Tim ten, email, ma SV..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-56 transition-all"
-              />
-            </div>
-            <select
-              value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none w-full sm:w-auto"
-            >
-              <option value="all">Tat ca trang thai</option>
-              <option value="active">Active</option>
-              <option value="pending">Pending</option>
-              <option value="suspended">Suspended</option>
-            </select>
-          </div>
-          <button
-            onClick={fetchUsers}
-            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 transition-all"
-          >
-            <RefreshCw size={14} />
-            Lam moi
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-16 text-slate-400">
-            <Loader2 size={24} className="animate-spin mr-2" />
-            <span className="text-sm">Dang tai...</span>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
-            <Users size={36} strokeWidth={1} />
-            <p className="text-sm">Khong tim thay nguoi dung</p>
-          </div>
-        ) : (
-          <>
-            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
-              {filtered.map(user => (
-                <div key={user.id} className="p-4 space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-sm shrink-0">
-                      {user.fullName?.charAt(0)?.toUpperCase() || '?'}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user.fullName}</p>
-                      {user.studentId && (
-                        <p className="text-[10px] text-slate-400 font-mono mt-1">{user.studentId}</p>
-                      )}
-                      <div className="mt-2 space-y-1">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                          <Mail size={12} />
-                          <span className="truncate">{user.email}</span>
-                        </div>
-                        {user.phone && (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                            <Phone size={12} />
-                            <span>{user.phone}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                          <Calendar size={12} />
-                          {new Date(user.createdAt).toLocaleDateString('vi-VN')}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <select
-                      value={user.role}
-                      disabled={actionLoading === user.id}
-                      onChange={e => doUpdate(user.id, { role: e.target.value })}
-                      className={cn(
-                        'px-2 py-1 text-[10px] font-bold rounded-full border outline-none cursor-pointer',
-                        roleBadge(user.role)
-                      )}
-                    >
-                      {ROLE_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                    <span className={cn('px-2 py-1 text-[10px] font-bold rounded-full border uppercase', statusBadge(user.status))}>
-                      {user.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {actionLoading === user.id ? (
-                      <Loader2 size={16} className="animate-spin text-slate-400" />
-                    ) : (
-                      <>
-                        {user.status === 'pending' && (
-                          <button
-                            onClick={() => doUpdate(user.id, { status: 'active' })}
-                            className="px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl"
-                          >
-                            Phê duyệt
-                          </button>
-                        )}
-                        {user.status === 'active' && (
-                          <button
-                            onClick={() => { setBanModal({ user, type: 'temporary' }); setBanReason(''); setBanDays('7'); }}
-                            className="px-3 py-2 text-xs font-bold text-amber-700 bg-amber-50 dark:bg-amber-900/20 rounded-xl"
-                          >
-                            Cấm tạm thời
-                          </button>
-                        )}
-                        {user.status === 'suspended' && (
-                          <button
-                            onClick={() => doUnban(user.id)}
-                            className="px-3 py-2 text-xs font-bold text-blue-700 bg-blue-50 dark:bg-blue-900/20 rounded-xl"
-                          >
-                            Bỏ cấm
-                          </button>
-                        )}
-                        <button
-                          onClick={() => doDelete(user.id, user.fullName)}
-                          className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 dark:bg-red-900/20 rounded-xl"
-                        >
-                          Xóa
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nguoi dung</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Lien he</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ngay dang ky</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quyen</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Trang thai</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Thao tac</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map(user => (
-                  <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-sm shrink-0">
-                          {user.fullName?.charAt(0)?.toUpperCase() || '?'}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-slate-900 dark:text-white">{user.fullName}</p>
-                          {user.studentId && (
-                            <p className="text-[10px] text-slate-400 font-mono">{user.studentId}</p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                          <Mail size={12} />
-                          <span>{user.email}</span>
-                        </div>
-                        {user.phone && (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                            <Phone size={12} />
-                            <span>{user.phone}</span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                        <Calendar size={12} />
-                        {new Date(user.createdAt).toLocaleDateString('vi-VN')}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <select
-                        value={user.role}
-                        disabled={actionLoading === user.id}
-                        onChange={e => doUpdate(user.id, { role: e.target.value })}
-                        className={cn(
-                          'px-2 py-1 text-[10px] font-bold rounded-full border outline-none cursor-pointer',
-                          roleBadge(user.role)
-                        )}
-                      >
-                        {ROLE_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={cn('px-2 py-0.5 text-[10px] font-bold rounded-full border uppercase', statusBadge(user.status))}>
-                        {user.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 justify-end">
-                        {actionLoading === user.id ? (
-                          <Loader2 size={16} className="animate-spin text-slate-400" />
-                        ) : (
-                          <>
-                            {user.status === 'pending' && (
-                              <button
-                                onClick={() => doUpdate(user.id, { status: 'active' })}
-                                title="Phe duyet"
-                                className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all"
-                              >
-                                <CheckCircle2 size={18} />
-                              </button>
-                            )}
-                            {user.status === 'active' && (
-                              <button
-                                onClick={() => { setBanModal({ user, type: 'temporary' }); setBanReason(''); setBanDays('7'); }}
-                                title="Cấm tạm thời"
-                                className="p-2 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-all"
-                              >
-                                <XCircle size={18} />
-                              </button>
-                            )}
-                            {user.status === 'suspended' && (
-                              <button
-                                onClick={() => doUnban(user.id)}
-                                title="Bỏ cấm"
-                                className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
-                              >
-                                <Shield size={18} />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => doDelete(user.id, user.fullName)}
-                              title="Xóa tài khoản"
-                              className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </div>
-      </>}
-
-      {/* Ban modal */}
       {banModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl p-5 sm:p-8 w-full max-w-md space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
-                <Ban size={20} className="text-red-600" />
-              </div>
-              <div>
-                <h3 className="font-black text-slate-900 dark:text-white">Cấm tài khoản</h3>
-                <p className="text-xs text-slate-500">{banModal.user.fullName}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm">
+          <div className="app-panel app-hover-box w-full max-w-xl overflow-hidden rounded-[32px]">
+            <div className="border-b border-[rgba(30,23,19,0.08)] px-5 py-5 dark:border-white/8 sm:px-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-red-100 text-red-700 dark:bg-red-400/10 dark:text-red-200">
+                  <Ban size={18} />
+                </div>
+                <div>
+                  <p className="app-eyebrow">{copy.modalEyebrow}</p>
+                  <h3 className="mt-2 text-2xl font-black text-slate-900 dark:text-[var(--landing-text)]">{fillText(copy.modalTitle, { name: banModal.user.fullName })}</h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{copy.modalDesc}</p>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Loại cấm</label>
-              <div className="grid grid-cols-2 sm:flex gap-2">
-                {(['temporary', 'permanent'] as const).map(type => (
+            <div className="grid gap-5 px-5 py-5 sm:px-6 sm:py-6">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(['temporary', 'permanent'] as const).map((type) => (
                   <button
                     key={type}
-                    onClick={() => setBanModal(m => m ? { ...m, type } : null)}
+                    onClick={() => setBanModal((current) => (current ? { ...current, type } : null))}
                     className={cn(
-                      'flex-1 py-2 rounded-xl border text-xs font-bold transition-all',
+                      'rounded-[22px] border px-4 py-4 text-left transition-all',
                       banModal.type === type
-                        ? 'bg-red-600 text-white border-red-600'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                        ? 'border-[rgba(239,125,87,0.28)] bg-[rgba(239,125,87,0.12)] text-slate-900 dark:border-[rgba(239,125,87,0.28)] dark:bg-[rgba(239,125,87,0.12)] dark:text-[var(--landing-text)]'
+                        : 'border-[rgba(30,23,19,0.08)] bg-white/56 text-slate-600 dark:border-white/8 dark:bg-white/4 dark:text-[var(--landing-muted)]'
                     )}
                   >
-                    {type === 'temporary' ? 'Tạm thời' : 'Vĩnh viễn'}
+                    <p className="text-xs font-black uppercase tracking-[0.18em]">{type === 'temporary' ? copy.timedHold : copy.permanentHold}</p>
+                    <p className="mt-2 text-sm leading-6">{type === 'temporary' ? copy.timedHoldDesc : copy.permanentHoldDesc}</p>
                   </button>
                 ))}
               </div>
-            </div>
 
-            {banModal.type === 'temporary' && (
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Số ngày cấm</label>
-                <div className="grid grid-cols-2 sm:flex gap-2">
-                  {['3', '7', '14', '30'].map(d => (
-                    <button
-                      key={d}
-                      onClick={() => setBanDays(d)}
-                      className={cn(
-                        'flex-1 py-2 rounded-xl border text-xs font-bold transition-all',
-                        banDays === d
-                          ? 'bg-amber-500 text-white border-amber-500'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                      )}
-                    >{d} ngày</button>
-                  ))}
+              {banModal.type === 'temporary' && (
+                <div className="space-y-3">
+                  <p className="app-overline">{copy.suspensionWindow}</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {['3', '7', '14', '30'].map((days) => (
+                      <button
+                        key={days}
+                        onClick={() => setBanDays(days)}
+                        className={cn(
+                          'rounded-[18px] border px-4 py-3 text-sm font-bold transition-all',
+                          banDays === days
+                            ? 'border-[rgba(239,125,87,0.28)] bg-[rgba(239,125,87,0.12)] text-slate-900 dark:border-[rgba(239,125,87,0.28)] dark:bg-[rgba(239,125,87,0.12)] dark:text-[var(--landing-text)]'
+                            : 'border-[rgba(30,23,19,0.08)] bg-white/56 text-slate-600 dark:border-white/8 dark:bg-white/4 dark:text-[var(--landing-muted)]'
+                        )}
+                      >
+                        {fillText(copy.days, { count: days })}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Lý do vi phạm <span className="text-red-500">*</span></label>
-              <textarea
-                rows={3}
-                placeholder="Mô tả hành vi vi phạm nội quy..."
-                value={banReason}
-                onChange={e => setBanReason(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-red-500 text-sm resize-none"
-              />
+              <div className="space-y-3">
+                <p className="app-overline">{copy.reason}</p>
+                <textarea
+                  rows={4}
+                  placeholder={copy.reasonPlaceholder}
+                  value={banReason}
+                  onChange={(event) => setBanReason(event.target.value)}
+                  className="app-control min-h-[120px] rounded-[22px] px-4 py-4 resize-none"
+                />
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-3 border-t border-[rgba(30,23,19,0.08)] px-5 py-5 dark:border-white/8 sm:flex-row sm:px-6">
               <button
                 onClick={() => setBanModal(null)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                className="app-secondary-button inline-flex min-h-[50px] flex-1 items-center justify-center rounded-[18px] px-4 text-sm font-bold"
               >
-                Huỷ
+                {copy.cancel}
               </button>
               <button
                 onClick={doBan}
                 disabled={!banReason.trim() || !!actionLoading}
-                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="app-primary-button inline-flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-[18px] px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <Ban size={16} />}
-                Xác nhận cấm
+                {copy.confirmSuspension}
               </button>
             </div>
           </div>
@@ -594,3 +662,4 @@ export const AdminUsers: React.FC = () => {
     </div>
   );
 };
+

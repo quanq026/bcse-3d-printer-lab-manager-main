@@ -1,7 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Sun, Moon } from 'lucide-react';
+﻿import React, { useEffect, useState } from 'react';
+import { Moon, Sun } from 'lucide-react';
+import { useLang } from '../contexts/LanguageContext';
+import { getUiText } from '../lib/uiText';
 
-export const ThemeToggle: React.FC = () => {
+interface ThemeToggleProps {
+  expanded?: boolean;
+}
+
+export const ThemeToggle: React.FC<ThemeToggleProps> = ({ expanded = false }) => {
+  const { lang } = useLang();
+  const copy = getUiText(lang);
   const [isDark, setIsDark] = useState(() => {
     const stored = localStorage.getItem('lab_theme');
     if (stored) return stored === 'dark';
@@ -18,13 +26,33 @@ export const ThemeToggle: React.FC = () => {
     }
   }, [isDark]);
 
+  if (expanded) {
+    return (
+      <button
+        onClick={() => setIsDark(!isDark)}
+        className="app-panel-soft flex h-full w-full min-w-0 items-center gap-3 px-4 py-3 text-left"
+        aria-label={copy.shared.themeToggle}
+      >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-[rgba(30,23,19,0.08)] bg-white/60 text-slate-900 dark:border-white/8 dark:bg-white/6 dark:text-[var(--landing-text)]">
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </div>
+        <div className="min-w-0">
+          <p className="app-overline">{copy.shared.themeLabel}</p>
+          <p className="truncate text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">
+            {isDark ? copy.shared.themeDark : copy.shared.themeLight}
+          </p>
+        </div>
+      </button>
+    );
+  }
+
   return (
     <button
       onClick={() => setIsDark(!isDark)}
-      className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-      aria-label="Toggle theme"
+      className="app-icon-button inline-flex h-11 w-11 items-center justify-center"
+      aria-label={copy.shared.themeToggle}
     >
-      {isDark ? <Sun size={20} /> : <Moon size={20} />}
+      {isDark ? <Sun size={18} /> : <Moon size={18} />}
     </button>
   );
 };

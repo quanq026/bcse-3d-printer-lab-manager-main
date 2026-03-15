@@ -697,7 +697,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
               </div>
 
               {/* Right panel: cost breakdown */}
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 h-fit space-y-4">
+              <div className="app-hover-box bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 h-fit space-y-4">
                 <h5 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <CreditCard size={18} className="text-blue-600" />
                   Cấu trúc chi phí
@@ -1134,7 +1134,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
               </p>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+            <div className="app-hover-box bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
               <div className="p-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
                   <div className="text-slate-500">Job:</div>
@@ -1285,45 +1285,94 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Progress Bar */}
-      <div className="mb-8 sm:mb-12 overflow-x-auto pb-2">
-        <div className="relative min-w-[540px]">
-          <div className="absolute top-5 left-0 w-full h-0.5 bg-slate-200 dark:bg-slate-800 z-0"></div>
-          <div className="flex justify-between relative z-10">
-          {steps.map((s) => {
-            const isSkipped = skippedSteps.has(s.id);
-            const isPast = step > s.id && !isSkipped;
-            const isCurrent = step === s.id;
-            return (
-              <div key={s.id} className="flex flex-col items-center">
-                <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border-4",
-                  isCurrent
-                    ? "bg-blue-600 text-white border-blue-100 dark:border-blue-900/50 scale-110"
-                    : isPast
-                      ? "bg-emerald-500 text-white border-emerald-100 dark:border-emerald-900/50"
-                      : isSkipped
-                        ? "bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 border-slate-50 dark:border-slate-900 opacity-40"
-                        : "bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800"
-                )}>
-                  {isPast ? <Check size={18} strokeWidth={3} /> : <s.icon size={18} />}
-                </div>
-                <span className={cn(
-                  "text-[10px] font-bold mt-2 uppercase tracking-wider transition-colors",
-                  isCurrent ? "text-blue-600" : isSkipped ? "text-slate-300 dark:text-slate-600" : "text-slate-400"
-                )}>
-                  {s.label}
-                </span>
-              </div>
-            );
-          })}
+    <div className="app-student-squared app-booking-wizard mx-auto max-w-5xl space-y-6">
+      <section className="app-panel app-hover-box p-5 sm:p-6 md:p-8">
+        <div className="mx-auto max-w-4xl space-y-6 text-center">
+          <div className="space-y-3">
+            <p className="app-eyebrow">// Đặt in</p>
+            <h2 className="app-display-sm text-slate-900 dark:text-[var(--landing-text)]">
+              Gửi yêu cầu in 3D
+            </h2>
+            <p className="mx-auto max-w-3xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">
+              Hoàn tất từng bước để chọn hình thức in, vật liệu, file và lịch mong muốn trước khi đưa yêu cầu vào hàng chờ.
+            </p>
+          </div>
+
+          <div className="grid gap-3 text-left sm:grid-cols-3">
+            <div className="app-panel-soft border p-4">
+              <p className="app-overline">Bước hiện tại</p>
+              <p className="mt-2 text-sm font-black text-slate-900 dark:text-[var(--landing-text)]">
+                {step}. {steps.find((item) => item.id === step)?.label}
+              </p>
+            </div>
+            <div className="app-panel-soft border p-4">
+              <p className="app-overline">Hình thức</p>
+              <p className="mt-2 text-sm font-black text-slate-900 dark:text-[var(--landing-text)]">
+                {isSelf ? t('selfPrint') : t('labAssisted')}
+              </p>
+            </div>
+            <div className="app-panel-soft border p-4">
+              <p className="app-overline">Vật liệu</p>
+              <p className="mt-2 text-sm font-black text-slate-900 dark:text-[var(--landing-text)]">
+                {isLabMaterial ? t('labMaterial') : t('ownMaterial')}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Step Content */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none min-h-[400px]">
+      <section className="app-panel-soft border p-4 sm:p-5">
+        <div className="overflow-x-auto pb-1">
+          <div className="relative min-w-[560px]">
+            <div className="absolute left-0 top-[22px] h-px w-full bg-[rgba(30,23,19,0.1)] dark:bg-white/8" />
+            <div className="relative z-10 flex justify-between gap-4">
+              {steps.map((s) => {
+                const isSkipped = skippedSteps.has(s.id);
+                const isPast = step > s.id && !isSkipped;
+                const isCurrent = step === s.id;
+
+                return (
+                  <div key={s.id} className="grid justify-items-center gap-2 text-center">
+                    <div
+                      className={cn(
+                        'flex h-11 w-11 items-center justify-center border text-sm transition-all duration-300',
+                        isCurrent
+                          ? 'border-[rgba(239,125,87,0.48)] bg-[rgba(239,125,87,0.14)] text-[var(--landing-accent-strong)]'
+                          : isPast
+                            ? 'border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300'
+                            : isSkipped
+                              ? 'border-[rgba(30,23,19,0.06)] bg-white/50 text-slate-300 opacity-50 dark:border-white/6 dark:bg-white/3 dark:text-white/20'
+                              : 'border-[rgba(30,23,19,0.08)] bg-white/70 text-slate-500 dark:border-white/8 dark:bg-white/4 dark:text-[var(--landing-muted)]'
+                      )}
+                    >
+                      {isPast ? <Check size={18} strokeWidth={3} /> : <s.icon size={18} />}
+                    </div>
+                    <div className="space-y-1">
+                      <span
+                        className={cn(
+                          'block text-[10px] font-black uppercase tracking-[0.18em]',
+                          isCurrent
+                            ? 'text-[var(--landing-accent-strong)]'
+                            : isSkipped
+                              ? 'text-slate-300 dark:text-white/20'
+                              : 'text-slate-500 dark:text-[var(--landing-muted)]'
+                        )}
+                      >
+                        Bước {s.id}
+                      </span>
+                      <span className="block max-w-[88px] text-xs font-semibold leading-5 text-slate-700 dark:text-[var(--landing-text)]">
+                        {s.label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="app-panel app-hover-box min-h-[420px] border p-4 sm:p-6 md:p-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -1337,26 +1386,32 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
         </AnimatePresence>
       </div>
 
-      {/* Navigation */}
-      <div className="mt-6 sm:mt-8 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
-        <button
-          onClick={step === 1 ? onCancel : prevStep}
-          disabled={submitting}
-          className="w-full sm:w-auto justify-center px-6 py-3 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all flex items-center gap-2"
-        >
-          <ChevronLeft size={18} />
-          {step === 1 ? t('cancel') : t('back')}
-        </button>
+      <div className="app-panel-soft border px-4 py-4 sm:px-5">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            onClick={step === 1 ? onCancel : prevStep}
+            disabled={submitting}
+            className="app-secondary-button flex w-full items-center justify-center gap-2 px-5 text-sm font-black uppercase tracking-[0.16em] sm:w-auto"
+          >
+            <ChevronLeft size={18} />
+            {step === 1 ? t('cancel') : t('back')}
+          </button>
 
-        <button
-          onClick={step === 5 ? handleSubmit : nextStep}
-          disabled={submitting || (step === 5 && !confirmed) || (step === 1 && !formData.jobName.trim())}
-          className="w-full sm:w-auto justify-center px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 dark:shadow-none transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {submitting && <Loader2 size={18} className="animate-spin" />}
-          {step === 5 ? t('submitRequest') : t('next')}
-          {step !== 5 && <ChevronRight size={18} />}
-        </button>
+          <div className="flex flex-col items-stretch gap-2 sm:items-end">
+            <button
+              onClick={step === 5 ? handleSubmit : nextStep}
+              disabled={submitting || (step === 5 && !confirmed) || (step === 1 && !formData.jobName.trim())}
+              className="app-primary-button flex w-full items-center justify-center gap-2 px-6 text-sm font-black uppercase tracking-[0.16em] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              {submitting && <Loader2 size={18} className="animate-spin" />}
+              {step === 5 ? t('submitRequest') : t('next')}
+              {step !== 5 && <ChevronRight size={18} />}
+            </button>
+            <p className="text-xs leading-6 text-slate-500 dark:text-[var(--landing-muted)]">
+              {step === 5 ? 'Kiểm tra lại thông tin trước khi gửi vào hàng chờ.' : 'Bạn có thể quay lại bước trước để chỉnh lại thông tin.'}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

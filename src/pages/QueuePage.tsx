@@ -1,26 +1,31 @@
-﻿import React, { useEffect, useState } from 'react';
-import { Clock, Loader2, RefreshCw, User, Printer as PrinterIcon, Calendar } from 'lucide-react';
-import { cn } from '../lib/utils';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Calendar,
+  Clock,
+  Loader2,
+  Printer as PrinterIcon,
+  RefreshCw,
+  User,
+} from 'lucide-react';
+import { StatusChip, STATUS_LABELS } from '../components/StatusChip';
 import { api } from '../lib/api';
-
-const STATUS_STYLE: Record<string, string> = {
-  Submitted: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-  'Pending review': 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  Approved: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  Scheduled: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  Printing: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-};
-
-const STATUS_DOT: Record<string, string> = {
-  Submitted: 'bg-slate-400',
-  'Pending review': 'bg-yellow-400',
-  Approved: 'bg-emerald-500',
-  Scheduled: 'bg-blue-500',
-  Printing: 'bg-purple-500 animate-pulse',
-};
+import { cn } from '../lib/utils';
+import { JobStatus } from '../types';
 
 interface QueuePageProps {
   currentUser: any;
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return 'Chưa có thời gian';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(parsed);
 }
 
 export const QueuePage: React.FC<QueuePageProps> = ({ currentUser }) => {
@@ -43,246 +48,267 @@ export const QueuePage: React.FC<QueuePageProps> = ({ currentUser }) => {
     fetchQueue();
   }, []);
 
-  const myJobs = jobs.filter((j) => j.userId === currentUser?.id);
-  const myPositions = new Set(myJobs.map((j) => j.id));
+  const myJobs = useMemo(
+    () => jobs.filter((job) => job.userId === currentUser?.id),
+    [currentUser?.id, jobs]
+  );
+  const myPositions = new Set(myJobs.map((job) => job.id));
+  const reviewCount = jobs.filter((job) => [JobStatus.SUBMITTED, JobStatus.PENDING_REVIEW].includes(job.status)).length;
+  const printingCount = jobs.filter((job) => job.status === JobStatus.PRINTING).length;
+
+  const summaryCards = [
+    {
+      label: 'Lệnh trong hàng',
+      value: jobs.length,
+      note: 'Toàn bộ yêu cầu đang hiện diện trong hàng chờ in.',
+    },
+    {
+      label: 'Lệnh của bạn',
+      value: myJobs.length,
+      note: myJobs.length > 0 ? 'Các yêu cầu của bạn đang được đánh dấu xuyên suốt danh sách.' : 'Bạn chưa có yêu cầu nào xuất hiện trong hàng chờ hiện tại.',
+    },
+    {
+      label: 'Chờ duyệt',
+      value: reviewCount,
+      note: 'Các yêu cầu đang chờ moderator kiểm tra trước khi xếp lịch.',
+    },
+    {
+      label: 'Đang in',
+      value: printingCount,
+      note: 'Những công việc hiện đã được đưa lên máy in.',
+    },
+  ];
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6">
+      <section className="app-panel grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)] lg:px-8 lg:py-8">
         <div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white">Hàng chờ in</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            {jobs.length} lệnh đang chờ — được sắp xếp theo thứ tự thời gian nộp
+          <p className="app-eyebrow">// Hàng đợi</p>
+          <h2 className="app-display-sm mt-3">Nhìn rõ vị trí của từng yêu cầu trong hàng chờ.</h2>
+          <p className="app-subtle-copy mt-4 max-w-2xl text-sm sm:text-base">
+            Danh sách này phản ánh đúng thứ tự xử lý hiện tại. Yêu cầu nộp sớm sẽ nằm cao hơn, còn trạng thái cho biết công việc đang ở bước nào trong quy trình.
           </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              onClick={fetchQueue}
+              className="app-primary-button inline-flex min-w-[220px] items-center justify-center gap-2 px-5 text-sm font-black uppercase tracking-[0.16em]"
+            >
+              <RefreshCw size={18} />
+              Làm mới hàng đợi
+            </button>
+          </div>
         </div>
-        <button
-          onClick={fetchQueue}
-          className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600 transition-all hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
-        >
-          <RefreshCw size={14} />
-          Làm mới
-        </button>
-      </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {summaryCards.map((card, index) => (
+            <article key={card.label} className="app-panel-soft app-hover-box px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <p className="app-overline">{card.label}</p>
+                <span className="app-overline">0{index + 1}</span>
+              </div>
+              <p className="app-stat-number mt-4 text-slate-900 dark:text-[var(--landing-text)]">{card.value}</p>
+              <p className="mt-2 text-sm text-slate-500 dark:text-[var(--landing-muted)]">{card.note}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       {myJobs.length > 0 && (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/40 dark:bg-blue-900/20">
-          <p className="text-sm font-bold text-blue-800 dark:text-blue-300">
-            Lệnh của bạn: {myJobs.map((j) => {
-              const pos = jobs.findIndex((q) => q.id === j.id) + 1;
-              return `${j.jobName} — vị trí #${pos}`;
-            }).join(' · ')}
-          </p>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex items-center justify-center py-20 text-slate-400">
-          <Loader2 size={24} className="mr-2 animate-spin" />
-          <span className="text-sm">Đang tải hàng chờ...</span>
-        </div>
-      ) : jobs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400">
-          <Clock size={40} strokeWidth={1} />
-          <p className="text-sm">Không có lệnh nào trong hàng chờ</p>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 md:hidden">
-            {jobs.map((job, idx) => {
-              const isMe = myPositions.has(job.id);
-              return (
-                <div
-                  key={job.id}
-                  className={cn(
-                    'space-y-3 p-4',
-                    isMe ? 'bg-blue-50/60 dark:bg-blue-900/10' : 'bg-white dark:bg-slate-900'
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <div
-                        className={cn(
-                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black',
-                          idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
-                          idx === 1 ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' :
-                          idx === 2 ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400' :
-                          'bg-slate-50 text-slate-500 dark:bg-slate-800/50 dark:text-slate-500'
-                        )}
-                      >
-                        {idx + 1}
-                      </div>
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {isMe && (
-                            <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-black uppercase text-white">Bạn</span>
-                          )}
-                          <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{job.jobName}</p>
-                        </div>
-                        <p className="font-mono text-[10px] text-slate-400">{job.id}</p>
-                      </div>
-                    </div>
-                    <span
-                      className={cn(
-                        'flex w-fit shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold',
-                        STATUS_STYLE[job.status] || 'bg-slate-100 text-slate-500'
-                      )}
-                    >
-                      <span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT[job.status] || 'bg-slate-400')} />
-                      {job.status}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 text-xs text-slate-600 dark:text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
-                        <User size={14} className="text-slate-500" />
-                      </div>
-                      <span className="font-medium text-slate-700 dark:text-slate-300">{job.userName}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
-                        <PrinterIcon size={14} className="text-slate-500" />
-                      </div>
-                      <span>{job.materialType} • {job.color}</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar size={12} />
-                        <span>{job.slotTime || 'Chưa xếp lịch'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Clock size={12} />
-                        <span>{new Date(job.createdAt).toLocaleString('vi-VN', {
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50">
-                  <th className="w-12 px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">#</th>
-                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Tên lệnh</th>
-                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Người gửi</th>
-                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Vật liệu</th>
-                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Ca / Giờ</th>
-                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Trạng thái</th>
-                  <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Nộp lúc</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {jobs.map((job, idx) => {
-                  const isMe = myPositions.has(job.id);
-                  return (
-                    <tr
-                      key={job.id}
-                      className={cn(
-                        'transition-colors',
-                        isMe ? 'bg-blue-50/60 dark:bg-blue-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'
-                      )}
-                    >
-                      <td className="px-6 py-4">
-                        <div
-                          className={cn(
-                            'flex h-8 w-8 items-center justify-center rounded-full text-sm font-black',
-                            idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
-                            idx === 1 ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' :
-                            idx === 2 ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400' :
-                            'bg-slate-50 text-slate-500 dark:bg-slate-800/50 dark:text-slate-500'
-                          )}
-                        >
-                          {idx + 1}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          {isMe && (
-                            <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-black uppercase text-white">Bạn</span>
-                          )}
-                          <div>
-                            <p className="text-sm font-bold text-slate-900 dark:text-white">{job.jobName}</p>
-                            <p className="font-mono text-[10px] text-slate-400">{job.id}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
-                            <User size={14} className="text-slate-500" />
-                          </div>
-                          <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{job.userName}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="space-y-0.5">
-                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{job.materialType}</p>
-                          <p className="text-[10px] text-slate-400">{job.color}</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {job.slotTime ? (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-                            <Calendar size={12} />
-                            {job.slotTime}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-300 dark:text-slate-600">—</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={cn(
-                            'flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold',
-                            STATUS_STYLE[job.status] || 'bg-slate-100 text-slate-500'
-                          )}
-                        >
-                          <span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT[job.status] || 'bg-slate-400')} />
-                          {job.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                          <Clock size={12} />
-                          {new Date(job.createdAt).toLocaleString('vi-VN', {
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/30 sm:px-6">
-            <p className="text-[11px] text-slate-400">
-              Duyệt theo thứ tự từ trên xuống. Nộp sớm = được ưu tiên hơn.
+        <section className="app-panel border-[rgba(239,125,87,0.2)] bg-[linear-gradient(135deg,rgba(255,247,237,0.92),rgba(255,240,228,0.9))] px-6 py-5 dark:border-[rgba(239,125,87,0.16)] dark:bg-[linear-gradient(135deg,rgba(239,125,87,0.12),rgba(240,179,91,0.06))]">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="app-eyebrow">// Yêu cầu của bạn</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">
+                {myJobs.map((job) => {
+                  const position = jobs.findIndex((queueJob) => queueJob.id === job.id) + 1;
+                  return `${job.jobName} ở vị trí #${position}`;
+                }).join(' · ')}
+              </p>
+            </div>
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-[var(--landing-muted)]">
+              Các hàng được đánh dấu để bạn theo dõi nhanh hơn
             </p>
           </div>
-        </div>
+        </section>
       )}
 
-      <div className="flex flex-wrap gap-3">
-        {Object.entries(STATUS_STYLE).map(([s]) => (
-          <div key={s} className="flex items-center gap-1.5">
-            <span className={cn('h-2 w-2 rounded-full', STATUS_DOT[s])} />
-            <span className="text-[11px] text-slate-500">{s}</span>
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_320px]">
+        <div className="app-panel overflow-hidden">
+          <div className="flex flex-col gap-3 border-b border-[rgba(30,23,19,0.08)] px-6 py-5 dark:border-white/8 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="app-overline">// Danh sách hàng chờ</p>
+              <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-[var(--landing-text)]">Thứ tự xử lý hiện tại</h3>
+            </div>
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-[var(--landing-muted)]">
+              Ưu tiên từ trên xuống dưới
+            </p>
           </div>
-        ))}
-      </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 px-6 py-16 text-slate-500 dark:text-[var(--landing-muted)]">
+              <Loader2 size={22} className="animate-spin" />
+              <span className="text-sm">Đang tải hàng chờ...</span>
+            </div>
+          ) : jobs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+              <div className="flex h-16 w-16 items-center justify-center border border-[rgba(30,23,19,0.08)] bg-white/50 text-slate-400 dark:border-white/8 dark:bg-white/4 dark:text-white/38">
+                <Clock size={28} strokeWidth={1.4} />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-slate-900 dark:text-[var(--landing-text)]">Hiện chưa có yêu cầu nào trong hàng chờ.</p>
+                <p className="mt-2 max-w-md text-sm text-slate-500 dark:text-[var(--landing-muted)]">
+                  Khi có yêu cầu mới được đưa vào luồng xử lý, danh sách này sẽ tự hiển thị thứ tự chờ tương ứng.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="md:hidden">
+                {jobs.map((job, index) => {
+                  const isMine = myPositions.has(job.id);
+                  return (
+                    <article
+                      key={job.id}
+                      className={cn(
+                        'app-hover-box border-b border-[rgba(30,23,19,0.06)] px-4 py-4 last:border-b-0 dark:border-white/6',
+                        isMine && 'bg-[rgba(239,125,87,0.06)] dark:bg-[rgba(239,125,87,0.08)]'
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="app-overline">#{index + 1}</span>
+                            {isMine && (
+                              <span className="inline-flex min-h-[24px] items-center border border-[rgba(239,125,87,0.22)] bg-[rgba(239,125,87,0.12)] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--landing-accent)]">
+                                Của bạn
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-2 truncate text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.jobName}</p>
+                          <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-400 dark:text-white/38">#{job.id}</p>
+                        </div>
+                        <StatusChip status={job.status as JobStatus} />
+                      </div>
+
+                      <div className="mt-4 grid gap-2 text-xs text-slate-500 dark:text-[var(--landing-muted)]">
+                        <p className="inline-flex items-center gap-2">
+                          <User size={12} />
+                          {job.userName}
+                        </p>
+                        <p className="inline-flex items-center gap-2">
+                          <PrinterIcon size={12} />
+                          {job.materialType} / {job.color}
+                        </p>
+                        <p className="inline-flex items-center gap-2">
+                          <Calendar size={12} />
+                          {job.slotTime || 'Chưa xếp lịch'}
+                        </p>
+                        <p className="inline-flex items-center gap-2">
+                          <Clock size={12} />
+                          {formatDateTime(job.createdAt)}
+                        </p>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="app-table">
+                  <thead>
+                    <tr>
+                      <th>Vị trí</th>
+                      <th>Yêu cầu</th>
+                      <th>Người gửi</th>
+                      <th>Vật liệu</th>
+                      <th>Ca / lịch</th>
+                      <th>Trạng thái</th>
+                      <th>Nộp lúc</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobs.map((job, index) => {
+                      const isMine = myPositions.has(job.id);
+                      return (
+                        <tr
+                          key={job.id}
+                          className={cn(
+                            isMine && 'bg-[rgba(239,125,87,0.06)] dark:bg-[rgba(239,125,87,0.08)]'
+                          )}
+                        >
+                          <td className="px-6 py-5 align-top">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-black text-slate-900 dark:text-[var(--landing-text)]">{index + 1}</span>
+                              {isMine && (
+                                <span className="inline-flex min-h-[24px] items-center border border-[rgba(239,125,87,0.22)] bg-[rgba(239,125,87,0.12)] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--landing-accent)]">
+                                  Của bạn
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 align-top">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.jobName}</span>
+                              <span className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-400 dark:text-white/38">#{job.id}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 align-top">
+                            <span className="text-sm text-slate-600 dark:text-[var(--landing-muted)]">{job.userName}</span>
+                          </td>
+                          <td className="px-6 py-5 align-top">
+                            <div className="flex flex-col text-sm text-slate-600 dark:text-[var(--landing-muted)]">
+                              <span>{job.materialType}</span>
+                              <span className="mt-1 text-xs text-slate-400 dark:text-white/40">{job.color}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 align-top">
+                            <span className="text-sm text-slate-600 dark:text-[var(--landing-muted)]">{job.slotTime || 'Chưa xếp lịch'}</span>
+                          </td>
+                          <td className="px-6 py-5 align-top">
+                            <StatusChip status={job.status as JobStatus} />
+                          </td>
+                          <td className="px-6 py-5 align-top">
+                            <span className="text-sm text-slate-500 dark:text-[var(--landing-muted)]">{formatDateTime(job.createdAt)}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+
+        <aside className="space-y-5">
+          <section className="app-panel px-5 py-5">
+            <p className="app-overline">// Nguyên tắc xếp hàng</p>
+            <div className="mt-4 space-y-3 text-sm text-slate-600 dark:text-[var(--landing-muted)]">
+              <p>Nộp sớm hơn sẽ đứng trước trong danh sách chờ.</p>
+              <p>Trạng thái được cập nhật ngay khi moderator duyệt hoặc đưa lệnh lên máy.</p>
+              <p>Các yêu cầu của bạn luôn được đánh dấu để theo dõi nhanh hơn.</p>
+            </div>
+          </section>
+
+          <section className="app-panel px-5 py-5">
+            <p className="app-overline">// Trạng thái hiện có</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {[
+                JobStatus.SUBMITTED,
+                JobStatus.PENDING_REVIEW,
+                JobStatus.APPROVED,
+                JobStatus.SCHEDULED,
+                JobStatus.PRINTING,
+              ].map((status) => (
+                <div key={status} className="inline-flex items-center gap-2">
+                  <StatusChip status={status} />
+                  <span className="text-xs text-slate-500 dark:text-[var(--landing-muted)]">{STATUS_LABELS[status]}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        </aside>
+      </section>
     </div>
   );
 };

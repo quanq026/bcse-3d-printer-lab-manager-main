@@ -1,24 +1,10 @@
-import React from 'react';
-import {
-  LayoutDashboard,
-  PlusCircle,
-  Clock,
-  CheckSquare,
-  Printer as PrinterIcon,
-  Package,
-  Settings,
-  LogOut,
-  BarChart3,
-  Users,
-  MessageCircle,
-  HardDrive,
-  Tag,
-  ListOrdered,
-  X,
-} from 'lucide-react';
-import { Role } from '../types';
-import { cn } from '../lib/utils';
+﻿import React from 'react';
+import { LogOut, X } from 'lucide-react';
+import { AppIcon } from './AppIcon';
 import { useLang } from '../contexts/LanguageContext';
+import { getUiText } from '../lib/uiText';
+import { cn } from '../lib/utils';
+import { Role } from '../types';
 
 interface SidebarProps {
   role: Role;
@@ -31,25 +17,31 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ role, activePage, onPageChange, onLogout, currentUser, isMobileOpen, onCloseMobile }) => {
-  const { t } = useLang();
+  const { lang } = useLang();
+  const copy = getUiText(lang);
 
   const menuItems = [
-    { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard, roles: [Role.STUDENT, Role.MODERATOR, Role.ADMIN] },
-    { id: 'booking', label: t('booking'), icon: PlusCircle, roles: [Role.STUDENT] },
-    { id: 'history', label: t('history'), icon: Clock, roles: [Role.STUDENT] },
-    { id: 'pricing', label: 'Pricing', icon: Tag, roles: [Role.STUDENT] },
-    { id: 'queue-status', label: 'Queue', icon: ListOrdered, roles: [Role.STUDENT, Role.MODERATOR, Role.ADMIN] },
-    { id: 'queue', label: t('queue'), icon: CheckSquare, roles: [Role.MODERATOR, Role.ADMIN] },
-    { id: 'printers', label: t('printers'), icon: PrinterIcon, roles: [Role.ADMIN] },
-    { id: 'inventory', label: t('inventory'), icon: Package, roles: [Role.ADMIN] },
-    { id: 'users', label: t('users'), icon: Users, roles: [Role.ADMIN] },
-    { id: 'analytics', label: t('analytics'), icon: BarChart3, roles: [Role.ADMIN] },
-    { id: 'backup', label: t('backup'), icon: HardDrive, roles: [Role.ADMIN] },
-    { id: 'settings', label: t('settings'), icon: Settings, roles: [Role.ADMIN] },
-    { id: 'chat', label: t('chat'), icon: MessageCircle, roles: [Role.STUDENT, Role.MODERATOR, Role.ADMIN] },
+    { id: 'dashboard', icon: 'solar:widget-5-bold', roles: [Role.STUDENT, Role.MODERATOR, Role.ADMIN] },
+    { id: 'booking', icon: 'solar:add-square-bold', roles: [Role.STUDENT] },
+    { id: 'history', icon: 'solar:history-bold', roles: [Role.STUDENT] },
+    { id: 'pricing', icon: 'solar:tag-price-bold', roles: [Role.STUDENT] },
+    { id: 'queue-status', icon: 'solar:sort-by-time-bold', roles: [Role.STUDENT, Role.MODERATOR, Role.ADMIN] },
+    { id: 'queue', icon: 'solar:checklist-bold', roles: [Role.MODERATOR, Role.ADMIN] },
+    { id: 'printers', icon: 'solar:printer-2-bold', roles: [Role.ADMIN] },
+    { id: 'inventory', icon: 'solar:box-bold', roles: [Role.ADMIN] },
+    { id: 'users', icon: 'solar:users-group-rounded-bold', roles: [Role.ADMIN] },
+    { id: 'analytics', icon: 'solar:chart-2-bold', roles: [Role.ADMIN] },
+    { id: 'backup', icon: 'solar:archive-bold', roles: [Role.ADMIN] },
+    { id: 'settings', icon: 'solar:settings-bold', roles: [Role.ADMIN] },
+    { id: 'chat', icon: 'solar:chat-round-dots-bold', roles: [Role.STUDENT, Role.MODERATOR, Role.ADMIN] },
   ];
 
-  const filteredItems = menuItems.filter(item => item.roles.includes(role));
+  const filteredItems = menuItems.filter((item) => item.roles.includes(role));
+  const roleLabel = {
+    [Role.STUDENT]: copy.roles.sidebarStudent,
+    [Role.MODERATOR]: copy.roles.sidebarModerator,
+    [Role.ADMIN]: copy.roles.sidebarAdmin,
+  }[role];
 
   const handlePageChange = (page: string) => {
     onPageChange(page);
@@ -65,82 +57,88 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, activePage, onPageChange
     <>
       <button
         type="button"
-        aria-label="Close navigation overlay"
+        aria-label={copy.shared.closeOverlay}
         onClick={onCloseMobile}
         className={cn(
-          'fixed inset-0 z-30 bg-slate-950/50 backdrop-blur-sm transition-opacity lg:hidden',
+          'fixed inset-0 z-30 bg-slate-950/65 backdrop-blur-sm transition-opacity lg:hidden',
           isMobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
         )}
       />
       <aside className={cn(
-        'fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-64 lg:max-w-none',
+        'app-sidebar fixed inset-y-0 left-0 z-40 flex w-72 max-w-[86vw] flex-col border-r transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-[288px] lg:max-w-none',
         isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}>
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 lg:hidden">
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Navigation</span>
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-5 lg:hidden">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">{copy.sidebar.mobileEyebrow}</p>
+            <p className="mt-1 text-sm font-semibold text-white">{copy.sidebar.mobileTitle}</p>
+          </div>
           <button
             onClick={onCloseMobile}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-            aria-label="Close navigation"
+            className="inline-flex h-11 w-11 items-center justify-center border border-white/10 bg-white/5 text-white/75 transition-colors hover:bg-white/10"
+            aria-label={copy.shared.closeNavigation}
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-          <button onClick={() => handlePageChange('dashboard')} className="flex items-center gap-3 w-full text-left hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
-              <PrinterIcon size={22} />
+        <div className="border-b border-white/10 px-5 py-6">
+          <button onClick={() => handlePageChange('dashboard')} className="app-sidebar-brand group w-full text-left">
+            <div className="app-sidebar-brand-mark">
+              <AppIcon icon="solar:printer-2-bold" size={18} />
             </div>
-            <div>
-              <h1 className="font-bold text-slate-900 dark:text-white leading-tight">{t('appName')}</h1>
-              <p className="text-[10px] text-slate-500 font-semibold tracking-wider">Lab Manager</p>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/40">{copy.sidebar.brandEyebrow}</p>
+              <h1 className="app-display-font mt-2 text-[1.35rem] leading-none text-white">{copy.sidebar.brandTitle}</h1>
+              <p className="mt-2 text-[13px] leading-6 text-white/62">{copy.sidebar.brandNote}</p>
             </div>
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-          {filteredItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handlePageChange(item.id)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
-                activePage === item.id
-                  ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200'
-              )}
-            >
-              <item.icon size={18} className={activePage === item.id ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'} />
-              {item.label}
-            </button>
-          ))}
-        </nav>
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="mb-4 px-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/38">{copy.sidebar.sectionLabel}</p>
+          </div>
+          <nav className="space-y-2">
+            {filteredItems.map((item) => {
+              const isActive = activePage === item.id;
+              const label = copy.sidebar.nav[item.id as keyof typeof copy.sidebar.nav] || item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handlePageChange(item.id)}
+                  className={cn('app-nav-link', isActive && 'is-active')}
+                >
+                  <AppIcon icon={item.icon} size={18} className={cn(isActive ? 'text-[var(--landing-amber)]' : 'text-white/42')} />
+                  <span className="text-sm font-semibold">{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800">
-          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 mb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs text-white"
-                style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
-                {currentUser?.fullName?.charAt(0)?.toUpperCase() || '?'}
+        <div className="border-t border-white/10 px-4 py-4">
+          <div className="app-sidebar-user-card p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{roleLabel}</p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center bg-[linear-gradient(135deg,var(--landing-accent),var(--landing-accent-strong))] text-sm font-black uppercase text-white">
+                {currentUser?.fullName?.charAt(0)?.toUpperCase() || 'U'}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{currentUser?.fullName || 'User'}</p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-tighter">{role}</p>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">{currentUser?.fullName || copy.shared.systemUser}</p>
+                <p className="truncate text-xs text-white/52">{currentUser?.email || role}</p>
               </div>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            className="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 border border-[rgba(239,125,87,0.24)] bg-[rgba(239,125,87,0.12)] px-4 text-sm font-semibold text-[#ffd7cc] transition-all hover:bg-[rgba(239,125,87,0.18)]"
           >
             <LogOut size={18} />
-            {t('logout')}
+            {copy.sidebar.logout}
           </button>
         </div>
       </aside>
     </>
   );
 };
-

@@ -1,10 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Save, Loader2, CheckCircle2, AlertCircle, Mail, Facebook, MessageCircle, BookOpen } from 'lucide-react';
-import { api } from '../lib/api';
+﻿import React, { useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle2, Save } from 'lucide-react';
+import { AppIcon } from '../components/AppIcon';
 import { useLang } from '../contexts/LanguageContext';
+import { api } from '../lib/api';
+import { getUiText } from '../lib/uiText';
+
+function SettingField({ label, hint, icon, children }: { label: string; hint: string; icon: string; children: React.ReactNode }) {
+  return (
+    <label className="grid gap-3 rounded-[24px] border border-[rgba(30,23,19,0.08)] bg-white/55 p-4 dark:border-white/8 dark:bg-white/4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-sky-100 text-sky-700 dark:bg-sky-400/10 dark:text-sky-200">
+          <AppIcon icon={icon} size={18} />
+        </div>
+        <div>
+          <p className="text-sm font-black text-slate-900 dark:text-[var(--landing-text)]">{label}</p>
+          <p className="mt-1 text-xs leading-6 text-slate-500 dark:text-[var(--landing-muted)]">{hint}</p>
+        </div>
+      </div>
+      {children}
+    </label>
+  );
+}
 
 export const AdminSettings: React.FC = () => {
-  const { t } = useLang();
+  const { lang } = useLang();
+  const text = getUiText(lang);
+  const copy = text.adminSettings;
+  const shared = text.shared;
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -15,14 +37,15 @@ export const AdminSettings: React.FC = () => {
     api.getSettingsAdmin().then(setSettings).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  const set = (key: string, value: string) => setSettings(s => ({ ...s, [key]: value }));
-
+  const setValue = (key: string, value: string) => setSettings((current) => ({ ...current, [key]: value }));
 
   const handleSave = async () => {
-    setError(''); setSuccess(''); setSaving(true);
+    setError('');
+    setSuccess('');
+    setSaving(true);
     try {
       await api.updateSettings(settings);
-      setSuccess('Đã lưu cài đặt thành công!');
+      setSuccess(copy.success);
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.message);
@@ -31,93 +54,79 @@ export const AdminSettings: React.FC = () => {
     }
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-20 text-slate-400">
-      <Loader2 size={24} className="animate-spin mr-2" />
-      <span>{t('loading')}</span>
-    </div>
-  );
+  if (loading) {
+    return (
+      <section className="app-panel rounded-[30px]">
+        <div className="app-empty-state">
+          <AppIcon icon="solar:settings-bold-duotone" size={28} className="animate-pulse" />
+          <p className="text-sm font-semibold">{copy.loading}</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <div className="max-w-2xl space-y-8">
-      <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">{t('settings')}</h2>
-        <p className="text-sm text-slate-500">Cấu hình thông tin liên hệ và hướng dẫn cho Lab.</p>
-      </div>
-
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-sm text-red-700">
-          <AlertCircle size={16} /> {error}
+    <div className="app-admin-squared app-admin-compact space-y-6">
+      <section className="app-panel app-hover-box relative overflow-hidden rounded-[32px] px-5 py-6 sm:px-8 sm:py-8">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+          <div className="space-y-3">
+            <p className="app-eyebrow">{copy.heroEyebrow}</p>
+            <h1 className="app-display-sm text-slate-900 dark:text-[var(--landing-text)]">{copy.heroTitle}</h1>
+            <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{copy.heroDesc}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {Object.values(copy.stats).map((stat) => (
+              <div key={stat.label} className="app-hover-box app-metric-card rounded-[26px]">
+                <p className="app-metric-card-label">{stat.label}</p>
+                <p className="mt-4 app-metric-card-value text-[clamp(1.7rem,2.6vw,2.3rem)]">{stat.value}</p>
+                <p className="app-metric-card-note">{stat.note}</p>
+              </div>
+            ))}
+          </div>
         </div>
-      )}
-      {success && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-sm text-emerald-700">
-          <CheckCircle2 size={16} /> {success}
-        </div>
-      )}
-
-      {/* Contact Info */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4">
-        <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm uppercase tracking-wider">
-          <Mail size={16} className="text-blue-500" /> Thông tin liên hệ & Hướng dẫn
-        </h3>
-        <p className="text-xs text-slate-500">Hiển thị trên Landing Page. Để trống nếu không muốn hiện.</p>
-
-        <SettingField icon={<Mail size={14} />} label="Email liên hệ">
-          <input type="email" placeholder="lab@vju.ac.vn" value={settings.contact_email || ''} onChange={e => set('contact_email', e.target.value)} className="settings-input" />
-        </SettingField>
-
-        <SettingField icon={<Facebook size={14} />} label="Link Facebook">
-          <input type="url" placeholder="https://facebook.com/bcse.vju" value={settings.contact_facebook || ''} onChange={e => set('contact_facebook', e.target.value)} className="settings-input" />
-        </SettingField>
-
-        <SettingField icon={<MessageCircle size={14} />} label="Số Zalo">
-          <input type="text" placeholder="09xxxxxxxx" value={settings.contact_zalo || ''} onChange={e => set('contact_zalo', e.target.value)} className="settings-input" />
-        </SettingField>
-
-        <SettingField icon={<BookOpen size={14} />} label="Link Hướng dẫn sử dụng">
-          <input type="url" placeholder="https://docs.google.com/..." value={settings.guide_url || ''} onChange={e => set('guide_url', e.target.value)} className="settings-input" />
-        </SettingField>
       </section>
 
+      {error && (
+        <section className="app-panel-soft rounded-[24px] border border-red-200/70 px-5 py-4 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">
+          <div className="flex items-start gap-3"><AlertCircle size={18} className="mt-0.5 shrink-0" /> <span>{error}</span></div>
+        </section>
+      )}
+      {success && (
+        <section className="app-panel-soft rounded-[24px] border border-emerald-200/70 px-5 py-4 text-sm text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">
+          <div className="flex items-start gap-3"><CheckCircle2 size={18} className="mt-0.5 shrink-0" /> <span>{success}</span></div>
+        </section>
+      )}
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full sm:w-auto justify-center flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 dark:shadow-none transition-all disabled:opacity-60"
-      >
-        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-        {t('save')}
-      </button>
+      <section className="app-panel app-hover-box rounded-[32px] px-5 py-6 sm:px-6">
+        <div className="space-y-2">
+          <p className="app-eyebrow">{copy.directoryEyebrow}</p>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-[var(--landing-text)]">{copy.directoryTitle}</h2>
+          <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{copy.directoryDesc}</p>
+        </div>
 
-      <style>{`
-        .settings-input {
-          width: 100%;
-          padding: 9px 14px;
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          font-size: 13px;
-          outline: none;
-          transition: border-color 0.15s;
-          color: #0f172a;
-        }
-        .dark .settings-input { background: #1e293b; border-color: #334155; color: #f1f5f9; }
-        .settings-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-        .settings-input::placeholder { color: #94a3b8; }
-      `}</style>
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <SettingField label={copy.supportEmail} hint={copy.supportEmailHint} icon="solar:letter-bold-duotone">
+            <input type="email" value={settings.contact_email || ''} onChange={(event) => setValue('contact_email', event.target.value)} placeholder="lab@vju.ac.vn" className="app-control rounded-[18px]" />
+          </SettingField>
+          <SettingField label={copy.facebookPage} hint={copy.facebookPageHint} icon="solar:chat-square-like-bold-duotone">
+            <input type="url" value={settings.contact_facebook || ''} onChange={(event) => setValue('contact_facebook', event.target.value)} placeholder="https://facebook.com/..." className="app-control rounded-[18px]" />
+          </SettingField>
+          <SettingField label={copy.zaloNumber} hint={copy.zaloNumberHint} icon="solar:chat-round-dots-bold-duotone">
+            <input type="text" value={settings.contact_zalo || ''} onChange={(event) => setValue('contact_zalo', event.target.value)} placeholder="09xxxxxxxx" className="app-control rounded-[18px]" />
+          </SettingField>
+          <SettingField label={copy.guideUrl} hint={copy.guideUrlHint} icon="solar:notebook-bookmark-bold-duotone">
+            <input type="url" value={settings.guide_url || ''} onChange={(event) => setValue('guide_url', event.target.value)} placeholder="https://docs.google.com/..." className="app-control rounded-[18px]" />
+          </SettingField>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <button onClick={handleSave} disabled={saving} className="app-primary-button inline-flex min-h-[50px] items-center justify-center gap-2 rounded-[18px] px-5 text-sm font-bold disabled:opacity-60">
+            <Save size={16} />
+            {saving ? copy.saving : shared.save}
+          </button>
+        </div>
+      </section>
     </div>
   );
 };
 
-function SettingField({ label, icon, children }: { label: string; icon?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-        {icon && <span className="text-slate-400">{icon}</span>}
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}

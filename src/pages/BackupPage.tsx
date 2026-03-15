@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { HardDrive, Download, RefreshCw, Loader2, Plus, Database } from 'lucide-react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
+import { Download, HardDrive, Loader2, Plus, RefreshCw } from 'lucide-react';
+import { AppIcon } from '../components/AppIcon';
+import { useLang } from '../contexts/LanguageContext';
 import { api } from '../lib/api';
+import { fillText, getUiText } from '../lib/uiText';
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -8,11 +11,14 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
-function formatDate(d: string | Date) {
-  return new Date(d).toLocaleString('vi-VN');
+function formatDate(value: string | Date, locale = 'vi-VN') {
+  return new Date(value).toLocaleString(locale);
 }
 
 export const BackupPage: React.FC = () => {
+  const { lang } = useLang();
+  const copy = getUiText(lang).adminBackup;
+  const locale = lang === 'JP' ? 'en-US' : 'vi-VN';
   const [backups, setBackups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -29,13 +35,15 @@ export const BackupPage: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchBackups(); }, []);
+  useEffect(() => {
+    fetchBackups();
+  }, []);
 
   const handleCreate = async () => {
     setCreating(true);
     try {
       const result = await api.createBackup();
-      alert(`Đã tạo backup: ${result.file}`);
+      alert(fillText(copy.createdAlert, { file: result.file }));
       fetchBackups();
     } catch (err: any) {
       alert(err.message);
@@ -44,81 +52,107 @@ export const BackupPage: React.FC = () => {
     }
   };
 
-  return (
-    <div className="max-w-3xl mx-auto space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <HardDrive size={24} className="text-blue-600" />
-            Sao lưu dữ liệu
-          </h2>
-          <p className="text-sm text-slate-500">Hệ thống tự động sao lưu mỗi 30 ngày. Bạn cũng có thể tạo backup thủ công bất kỳ lúc nào.</p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button
-            onClick={fetchBackups}
-            className="w-full sm:w-auto flex items-center justify-center p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-          >
-            <RefreshCw size={18} />
-          </button>
-          <button
-            onClick={handleCreate}
-            disabled={creating}
-            className="w-full sm:w-auto justify-center px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-60 shadow-lg shadow-blue-200 dark:shadow-none"
-          >
-            {creating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            Tạo backup ngay
-          </button>
-        </div>
-      </div>
+  const totalSize = useMemo(() => backups.reduce((sum, backup) => sum + (backup.size || 0), 0), [backups]);
+  const latestBackup = backups[0];
 
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
-          <Database size={16} className="text-slate-400" />
-          <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">Danh sách bản sao lưu</span>
-          <span className="ml-auto text-xs text-slate-400">{backups.length} file</span>
+  return (
+    <div className="app-admin-squared app-admin-compact space-y-6">
+      <section className="app-panel app-hover-box relative overflow-hidden rounded-[32px] px-5 py-6 sm:px-8 sm:py-8">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <p className="app-eyebrow">{copy.heroEyebrow}</p>
+              <h1 className="app-display-sm text-slate-900 dark:text-[var(--landing-text)]">{copy.heroTitle}</h1>
+              <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{copy.heroDesc}</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={fetchBackups} className="app-secondary-button inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[18px] px-5 text-sm font-bold">
+                <RefreshCw size={16} />
+                {copy.refresh}
+              </button>
+              <button onClick={handleCreate} disabled={creating} className="app-primary-button inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[18px] px-5 text-sm font-bold disabled:opacity-60">
+                {creating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                {copy.create}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="app-hover-box app-metric-card rounded-[26px]">
+              <p className="app-metric-card-label">{copy.stats.files.label}</p>
+              <p className="mt-4 app-metric-card-value text-[clamp(1.7rem,2.6vw,2.3rem)]">{backups.length}</p>
+              <p className="app-metric-card-note">{copy.stats.files.note}</p>
+            </div>
+            <div className="app-hover-box app-metric-card rounded-[26px]">
+              <p className="app-metric-card-label">{copy.stats.weight.label}</p>
+              <p className="mt-4 app-metric-card-value text-[clamp(1.7rem,2.6vw,2.3rem)]">{formatSize(totalSize)}</p>
+              <p className="app-metric-card-note">{copy.stats.weight.note}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="app-panel app-hover-box overflow-hidden rounded-[32px]">
+        <div className="flex flex-col gap-4 border-b border-[rgba(30,23,19,0.08)] px-5 py-5 dark:border-white/8 sm:px-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <p className="app-eyebrow">{copy.archiveEyebrow}</p>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-[var(--landing-text)]">{copy.archiveTitle}</h2>
+            <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">{latestBackup ? fillText(copy.latestPrefix, { date: formatDate(latestBackup.createdAt, locale) }) : copy.noBackupsYet}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="app-inline-pill rounded-full">{fillText(copy.filesCount, { count: backups.length })}</span>
+            <span className="app-inline-pill rounded-full">{fillText(copy.latestSize, { size: latestBackup ? formatSize(latestBackup.size) : '0 B' })}</span>
+          </div>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-slate-400">
-            <Loader2 size={24} className="animate-spin mr-2" />
-            <span className="text-sm">Đang tải...</span>
+          <div className="app-empty-state">
+            <Loader2 size={28} className="animate-spin" />
+            <p className="text-sm font-semibold">{copy.loading}</p>
           </div>
         ) : backups.length === 0 ? (
-          <div className="py-16 text-center text-slate-400">
-            <HardDrive size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="text-sm">Chưa có bản sao lưu nào</p>
+          <div className="app-empty-state">
+            <HardDrive size={42} strokeWidth={1.4} />
+            <p className="text-sm font-semibold">{copy.empty}</p>
+            <p className="max-w-md text-xs leading-6">{copy.emptyNote}</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {backups.map((b, i) => (
-              <div key={i} className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center">
-                    <Database size={18} className="text-slate-400" />
+          <div className="grid gap-3 p-4 sm:p-5">
+            {backups.map((backup, index) => (
+              <article key={index} className="app-panel-soft app-hover-box rounded-[26px] p-4 sm:p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-start gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-sky-100 text-sky-700 dark:bg-sky-400/10 dark:text-sky-200">
+                      <AppIcon icon="solar:database-bold-duotone" size={22} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-black text-slate-900 dark:text-[var(--landing-text)] break-all">{backup.name}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="app-inline-pill rounded-full">{formatDate(backup.createdAt, locale)}</span>
+                        <span className="app-inline-pill rounded-full">{formatSize(backup.size)}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white break-all">{b.name}</p>
-                    <p className="text-xs text-slate-400">{formatDate(b.createdAt)} · {formatSize(b.size)}</p>
-                  </div>
+                  <a href={api.downloadBackup(backup.name)} download={backup.name} className="app-secondary-button inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[18px] px-5 text-sm font-bold">
+                    <Download size={16} />
+                    {copy.download}
+                  </a>
                 </div>
-                <a
-                  href={api.downloadBackup(b.name)}
-                  download={b.name}
-                  className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                >
-                  <Download size={14} />
-                  Tải về
-                </a>
-              </div>
+              </article>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="p-5 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl text-sm text-amber-800 dark:text-amber-400">
-        <strong>Lưu ý:</strong> Các file backup chứa toàn bộ dữ liệu hệ thống (người dùng, yêu cầu in, kho vật liệu). Hãy lưu trữ ở nơi an toàn và không chia sẻ với người ngoài.
-      </div>
+      <section className="app-panel-soft rounded-[28px] border border-amber-200/70 px-5 py-4 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200 sm:px-6">
+        <div className="flex items-start gap-3">
+          <AppIcon icon="solar:shield-warning-bold-duotone" size={18} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em]">{copy.retentionEyebrow}</p>
+            <p className="mt-1">{copy.retentionNote}</p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
