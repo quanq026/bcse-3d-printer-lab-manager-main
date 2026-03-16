@@ -10,17 +10,17 @@ interface LanguageToggleProps {
 export const LanguageToggle: React.FC<LanguageToggleProps> = ({ expanded = false }) => {
   const { lang, setLang } = useLang();
   const copy = getUiText(lang);
-  const nextLang = lang === 'VN' ? 'EN' : 'VN';
-  const currentLabel = copy.shared.languageNames[lang];
+  const nextLang = lang === 'VN' ? 'JP' : 'VN';
+  const currentLabel = copy.shared.languageNames[lang] || (lang === 'JP' ? 'English' : 'Tiếng Việt');
 
   if (expanded) {
     return (
       <button
         onClick={() => setLang(nextLang)}
-        className="app-panel-soft flex h-full w-full min-w-0 items-center gap-3 px-4 py-3 text-left"
+        className="app-panel-soft flex h-full w-full min-w-0 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[rgba(239,125,87,0.05)] dark:hover:bg-[rgba(239,125,87,0.1)]"
         aria-label={copy.shared.languageToggle}
       >
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-[rgba(30,23,19,0.08)] bg-white/60 text-slate-900 dark:border-white/8 dark:bg-white/6 dark:text-[var(--landing-text)]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-[rgba(30,23,19,0.08)] bg-white/60 text-slate-900 dark:border-white/8 dark:bg-white/6 dark:text-[var(--landing-text)] group-hover:bg-white dark:group-hover:bg-white/10">
           <Languages size={18} />
         </div>
         <div className="min-w-0">
@@ -41,4 +41,3 @@ export const LanguageToggle: React.FC<LanguageToggleProps> = ({ expanded = false
     </button>
   );
 };
-

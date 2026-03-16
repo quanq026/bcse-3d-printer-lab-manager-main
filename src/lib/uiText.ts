@@ -899,7 +899,7 @@ export const uiText = {
 export const translations = {
   VN: {
     appName: 'BCSE 3D Lab',
-    appSubtitle: 'VJU My Dinh · VJU Hoa Lac',
+    appSubtitle: 'VJU My Dinh  VJU Hoa Lac',
     labOnline: 'Lab đang hoạt động',
     welcome: 'Chào mừng trở lại',
     registerTitle: 'Đăng ký tài khoản',
@@ -1058,9 +1058,9 @@ export const translations = {
     gram: 'gram',
     notSet: 'Chưa thiết lập',
   },
-  EN: {
+  JP: {
     appName: 'BCSE 3D Lab',
-    appSubtitle: 'VJU My Dinh Â· VJU Hoa Lac',
+    appSubtitle: 'VJU My Dinh  VJU Hoa Lac',
     labOnline: 'Lab online',
     welcome: 'Welcome back',
     registerTitle: 'Create account',
