@@ -311,7 +311,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
                 placeholder={adminCopy.historySearchPlaceholder}
                 value={historySearch}
                 onChange={(event) => setHistorySearch(event.target.value)}
-                className="app-control pl-10"
+                className="app-control"
+                style={{ paddingLeft: '2.75rem', paddingRight: '1rem' }}
               />
             </div>
             <select
@@ -804,7 +805,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
                 placeholder={adminCopy.historySearchPlaceholder}
                 value={historySearch}
                 onChange={(event) => setHistorySearch(event.target.value)}
-                className="app-control pl-10"
+                className="app-control"
+                style={{ paddingLeft: '2.75rem', paddingRight: '1rem' }}
               />
             </div>
             <select

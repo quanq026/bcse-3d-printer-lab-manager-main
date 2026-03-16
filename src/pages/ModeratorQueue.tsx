@@ -420,7 +420,8 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
                   placeholder={copy.searchPlaceholder}
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  className="app-control pl-10"
+                  className="app-control"
+                  style={{ paddingLeft: '2.75rem', paddingRight: '1rem' }}
                 />
               </div>
             </div>
@@ -470,8 +471,8 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
                         <Clock size={12} />
                         {job.estimatedTime || shared.noDuration}
                       </p>
-                      <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400 dark:text-white/38">
-                        {job.materialType} � {job.color} � {materialSourceLabel(job.materialSource)}
+                      <p className="truncate text-[11px] uppercase tracking-[0.16em] text-slate-400 dark:text-white/38">
+                        {job.materialType} • {job.color} • {materialSourceLabel(job.materialSource)}
                       </p>
                     </div>
                   </button>

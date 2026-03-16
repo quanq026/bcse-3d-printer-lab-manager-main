@@ -161,7 +161,7 @@ try { db.exec(`ALTER TABLE printers ADD COLUMN location TEXT NOT NULL DEFAULT ''
 try { db.exec(`ALTER TABLE printers ADD COLUMN image_url TEXT NOT NULL DEFAULT ''`); } catch { }
 try { db.exec(`ALTER TABLE printers ADD COLUMN has_ams INTEGER NOT NULL DEFAULT 0`); } catch { }
 try { db.exec(`ALTER TABLE filament_inventory ADD COLUMN brand TEXT NOT NULL DEFAULT ''`); } catch { }
-try { db.exec(`ALTER TABLE filament_inventory ADD COLUMN area TEXT NOT NULL DEFAULT 'Mỹ Đình'`); } catch { }
+try { db.exec(`ALTER TABLE filament_inventory ADD COLUMN area TEXT NOT NULL DEFAULT 'My Dinh'`); } catch { }
 try { db.exec(`ALTER TABLE print_jobs ADD COLUMN revision_note TEXT`); } catch { }
 try { db.exec(`ALTER TABLE print_jobs ADD COLUMN brand TEXT`); } catch { }
 try { db.exec(`ALTER TABLE users ADD COLUMN ban_reason TEXT`); } catch { }
@@ -202,11 +202,11 @@ function seedIfEmpty() {
   const invCount = (db.prepare('SELECT COUNT(*) as c FROM filament_inventory').get() as any).c;
   if (invCount === 0) {
     const items = [
-      { id: 'S-001', mat: 'PLA', color: 'Trắng', g: 850, t: 200, loc: 'Tủ A1', brand: 'Bambu', area: 'Mỹ Đình' },
-      { id: 'S-002', mat: 'PLA', color: 'Đen', g: 120, t: 200, loc: 'Tủ A1', brand: 'Bambu', area: 'Mỹ Đình' },
-      { id: 'S-003', mat: 'PETG', color: 'Xanh dương', g: 450, t: 150, loc: 'Tủ B2', brand: 'Elegoo', area: 'Hòa Lạc' },
-      { id: 'S-004', mat: 'PLA', color: 'Đỏ', g: 0, t: 200, loc: 'Tủ A2', brand: 'Bambu', area: 'Mỹ Đình' },
-      { id: 'S-005', mat: 'PLA', color: 'Xám', g: 920, t: 200, loc: 'Tủ A1', brand: 'Generic', area: 'Hòa Lạc' },
+      { id: 'S-001', mat: 'PLA', color: 'Trắng', g: 850, t: 200, loc: 'Tủ A1', brand: 'Bambu', area: 'My Dinh' },
+      { id: 'S-002', mat: 'PLA', color: 'Đen', g: 120, t: 200, loc: 'Tủ A1', brand: 'Bambu', area: 'My Dinh' },
+      { id: 'S-003', mat: 'PETG', color: 'Xanh dương', g: 450, t: 150, loc: 'Tủ B2', brand: 'Elegoo', area: 'Hoa Lac' },
+      { id: 'S-004', mat: 'PLA', color: 'Đỏ', g: 0, t: 200, loc: 'Tủ A2', brand: 'Bambu', area: 'My Dinh' },
+      { id: 'S-005', mat: 'PLA', color: 'Xám', g: 920, t: 200, loc: 'Tủ A1', brand: 'Generic', area: 'Hoa Lac' },
     ];
     const stmt = db.prepare(`INSERT INTO filament_inventory (id,material,color,remaining_grams,threshold,location,brand,area) VALUES (?,?,?,?,?,?,?,?)`);
     items.forEach(i => stmt.run(i.id, i.mat, i.color, i.g, i.t, i.loc, i.brand, i.area));
@@ -545,7 +545,20 @@ app.post('/api/printers/upload-image', requireAuth, requireRole('Admin'), upload
 // ─── Inventory ─────────────────────────────────────────────────────────────
 app.get('/api/inventory', requireAuth, (req, res) => {
   const items = db.prepare('SELECT * FROM filament_inventory ORDER BY area,material,color').all() as any[];
-  res.json(items.map(i => ({ ...i, remainingGrams: i.remaining_grams, brand: i.brand || '', area: i.area || 'Mỹ Đình', status: i.remaining_grams === 0 ? 'Out of Stock' : i.remaining_grams < i.threshold ? 'Low' : 'In Stock' })));
+  res.json(items.map(i => {
+    // Normalize old Vietnamese names to standard EN identifiers so the frontend can group them properly
+    let resolvedArea = i.area || 'My Dinh';
+    if (resolvedArea === 'Mỹ Đình') resolvedArea = 'My Dinh';
+    if (resolvedArea === 'Hòa Lạc') resolvedArea = 'Hoa Lac';
+    
+    return { 
+      ...i, 
+      remainingGrams: i.remaining_grams, 
+      brand: i.brand || '', 
+      area: resolvedArea, 
+      status: i.remaining_grams === 0 ? 'Out of Stock' : i.remaining_grams < i.threshold ? 'Low' : 'In Stock' 
+    };
+  }));
 });
 
 app.patch('/api/inventory/:id', requireAuth, requireRole('Admin', 'Moderator'), (req: AuthReq, res: Response) => {
@@ -560,7 +573,7 @@ app.post('/api/inventory', requireAuth, requireRole('Admin'), (req: AuthReq, res
   const { material, color, remainingGrams, threshold, location, brand, area } = req.body;
   const id = `S-${String((db.prepare('SELECT COUNT(*) as c FROM filament_inventory').get() as any).c + 1).padStart(3, '0')}`;
   db.prepare('INSERT INTO filament_inventory (id,material,color,remaining_grams,threshold,location,brand,area) VALUES (?,?,?,?,?,?,?,?)')
-    .run(id, material, color, remainingGrams || 1000, threshold || 200, location || '', brand || '', area || 'Mỹ Đình');
+    .run(id, material, color, remainingGrams || 1000, threshold || 200, location || '', brand || '', area || 'My Dinh');
   res.status(201).json({ id });
 });
 

@@ -52,3 +52,6 @@ metadata.json
 .playwright-cli/
 
 output/
+
+tmp-utf8-test.txt
+tmp-utf8-test2.txt

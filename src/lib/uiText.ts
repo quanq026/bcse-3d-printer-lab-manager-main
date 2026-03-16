@@ -175,7 +175,7 @@ const vnText = {
     listEyebrow: '// Danh sách chờ xử lý',
     listCount: '{count} yêu cầu đang mở',
     refresh: 'Làm mới',
-    searchPlaceholder: 'Tìm theo tên yêu cầu, người gửi hoặc mã job',
+    searchPlaceholder: 'Tìm kiếm',
     loading: 'Đang tải danh sách...',
     emptyTitle: 'Không có yêu cầu nào khớp với bộ lọc hiện tại.',
     emptyDesc: 'Thử đổi từ khóa tìm kiếm hoặc làm mới danh sách để lấy dữ liệu mới nhất.',
