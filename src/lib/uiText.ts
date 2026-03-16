@@ -61,7 +61,7 @@ const vnText = {
     backup: { eyebrow: '// Sao lưu', title: 'Bản sao lưu hệ thống', note: 'Bảo vệ dữ liệu hệ thống, các file xuất và các điểm khôi phục của không gian làm việc.' },
     settings: { eyebrow: '// Cấu hình', title: 'Cài đặt phòng lab', note: 'Điều chỉnh thiết lập mặc định, kênh liên hệ và các quy tắc vận hành cấp hệ thống.' },
     pricing: { eyebrow: '// Công khai', title: 'Tổng quan bảng giá', note: 'Cung cấp cho sinh viên bảng tham chiếu rõ ràng về vật liệu, phụ phí và chi phí in.' },
-    'queue-status': { eyebrow: '// Hàng đợi', title: 'Trạng thái hàng chờ', note: 'Xem tải hiện tại, công việc sắp tới và vị trí của từng yêu cầu trong hàng đợi.' },
+    'queue-status': { eyebrow: '// Hàng đợi', title: 'Trạng thái hàng chờ', note: 'Xem trạng thái hiện tại, công việc sắp tới và vị trí của từng yêu cầu trong hàng chờ.' },
     'job-detail': { eyebrow: '// Chi tiết', title: 'Chi tiết yêu cầu', note: 'Kiểm tra file, ghi chú và kết quả xử lý của một yêu cầu in cụ thể.' },
   },
   roles: {
@@ -75,9 +75,9 @@ const vnText = {
     nav: { dashboard: 'Tổng quan', booking: 'Tạo yêu cầu in', history: 'Lịch sử yêu cầu', pricing: 'Bảng giá', 'queue-status': 'Hàng chờ', queue: 'Hàng đợi duyệt', printers: 'Máy in', inventory: 'Vật tư', users: 'Người dùng', analytics: 'Bảng giá & phí', backup: 'Sao lưu', settings: 'Thiết lập', chat: 'Trao đổi' },
   },
   adminPrinters: {
-    heroEyebrow: '// Máy in', heroTitle: 'Theo dõi công suất, trạng thái máy và phân bổ theo từng cơ sở.', heroDesc: 'Nhóm máy theo cơ sở, cập nhật trạng thái vận hành ngay tại chỗ và giữ hồ sơ ảnh, vật liệu hỗ trợ luôn khớp với đội máy thực tế.', refresh: 'Làm mới đội máy', add: 'Thêm máy in', loading: 'Đang tải đội máy in...', empty: 'Chưa có máy in nào được cấu hình.', createFirst: 'Tạo máy in đầu tiên',
-    stats: { fleet: { label: 'Đội máy in', note: 'Toàn bộ máy in đang được cấu hình và theo dõi trong hệ thống.' }, available: { label: 'Sẵn sàng ngay', note: 'Máy có thể nhận job mới mà không cần xử lý thủ công thêm.' }, ams: { label: 'Có AMS', note: 'Máy hỗ trợ đổi vật liệu hoặc in đa màu qua AMS.' }, busy: { label: 'Đang bận', note: 'Máy đang chạy hoặc đã được giữ chỗ cho các job hiện tại.' } },
-    campusLabel: 'Cơ sở', campusNote: '{count} máy đang được quản lý tại cơ sở này phục vụ điều phối vận hành và lên lịch bảo trì.', campusTotal: '{count} tổng', campusAvailable: '{count} sẵn sàng', profile: 'Hồ sơ máy', supportedMaterials: 'Vật liệu hỗ trợ', campusField: 'Cơ sở', campusFieldNote: 'Cập nhật trạng thái ngay khi máy đổi sang bận hoặc bảo trì.', edit: 'Sửa', statusAvailable: 'Sẵn sàng', statusBusy: 'Đang bận', statusMaintenance: 'Bảo trì', deleteConfirm: 'Xóa máy in "{name}"? Hành động này không thể hoàn tác.', validationName: 'Vui lòng nhập tên máy in và thể tích in.', validationMaterial: 'Hãy chọn ít nhất một loại vật liệu được hỗ trợ.', modalEyebrow: '// Hồ sơ máy in', modalEditTitle: 'Chỉnh sửa hồ sơ máy', modalAddTitle: 'Thêm máy in mới', modalDesc: 'Giữ ảnh máy, dải vật liệu hỗ trợ và trạng thái vận hành luôn khớp với đội máy thực tế.', preview: 'Xem trước', uploadImage: 'Tải ảnh máy in', imageUrlPlaceholder: 'Hoặc dán URL ảnh', printerName: 'Tên máy in', printerNamePlaceholder: 'Bambu Lab A1 / Ender 3 / X1 Carbon', buildVolume: 'Thể tích in', buildVolumePlaceholder: '256 x 256 x 256 mm', selectCampus: 'Cơ sở', customCampusPlaceholder: 'Nhãn cơ sở tùy chỉnh', selectMaterials: 'Vật liệu hỗ trợ', hasAms: 'Hỗ trợ AMS', hasAmsDesc: 'Dùng cho các máy có thể gắn nhiều cuộn vật liệu hoặc tự động đổi màu hoặc đổi vật liệu.', statusField: 'Trạng thái vận hành', cancel: 'Hủy', saveAdd: 'Tạo máy in', saveEdit: 'Lưu thay đổi máy in',
+    heroEyebrow: '// Máy in', heroTitle: 'Theo dõi công suất, trạng thái máy và phân bổ theo từng cơ sở.', heroDesc: 'Nhóm máy theo cơ sở, cập nhật trạng thái vận hành và thông tin chung máy in, vật liệu.', refresh: 'Làm mới', add: 'Thêm máy in', loading: 'Đang tải Tổng máy in...', empty: 'Chưa có máy in nào được cấu hình.', createFirst: 'Tạo máy in đầu tiên',
+    stats: { fleet: { label: 'Tổng máy in', note: 'Toàn bộ máy in đang được cấu hình và theo dõi trong hệ thống.' }, available: { label: 'Máy in sẵn sàng', note: 'Máy có thể nhận job mới mà không cần xử lý thủ công thêm.' }, ams: { label: 'Có AMS', note: 'Máy hỗ trợ đổi vật liệu hoặc in đa màu qua AMS.' }, busy: { label: 'Đang bận', note: 'Máy đang chạy hoặc đã được giữ chỗ cho các job hiện tại.' } },
+    campusLabel: 'Cơ sở', campusNote: '{count} máy đang được quản lý tại cơ sở này .', campusTotal: '{count} tổng', campusAvailable: '{count} sẵn sàng', profile: 'Hồ sơ máy', supportedMaterials: 'Vật liệu hỗ trợ', campusField: 'Cơ sở', campusFieldNote: 'Cập nhật trạng thái ngay khi máy đổi sang bận hoặc bảo trì.', edit: 'Sửa', statusAvailable: 'Sẵn sàng', statusBusy: 'Đang bận', statusMaintenance: 'Bảo trì', deleteConfirm: 'Xóa máy in "{name}"? Hành động này không thể hoàn tác.', validationName: 'Vui lòng nhập tên máy in và thể tích in.', validationMaterial: 'Hãy chọn ít nhất một loại vật liệu được hỗ trợ.', modalEyebrow: '// Hồ sơ máy in', modalEditTitle: 'Chỉnh sửa hồ sơ máy', modalAddTitle: 'Thêm máy in mới', modalDesc: 'Giữ ảnh máy, dải vật liệu hỗ trợ và trạng thái vận hành luôn khớp với đội máy thực tế.', preview: 'Xem trước', uploadImage: 'Tải ảnh máy in', imageUrlPlaceholder: 'Hoặc dán URL ảnh', printerName: 'Tên máy in', printerNamePlaceholder: 'Bambu Lab A1 / Ender 3 / X1 Carbon', buildVolume: 'Thể tích in', buildVolumePlaceholder: '256 x 256 x 256 mm', selectCampus: 'Cơ sở', customCampusPlaceholder: 'Nhãn cơ sở tùy chỉnh', selectMaterials: 'Vật liệu hỗ trợ', hasAms: 'Hỗ trợ AMS', hasAmsDesc: 'Dùng cho các máy có thể gắn nhiều cuộn vật liệu hoặc tự động đổi màu hoặc đổi vật liệu.', statusField: 'Trạng thái vận hành', cancel: 'Hủy', saveAdd: 'Tạo máy in', saveEdit: 'Lưu thay đổi máy in',
   },
   adminInventory: {
     heroEyebrow: '// Vật tư', heroTitle: 'Theo dõi từng cuộn vật liệu trước khi hàng chờ chạm ngưỡng thiếu hụt.', heroDesc: 'Giữ trạng thái tồn kho theo từng cơ sở, cập nhật số gram còn lại theo thời gian thực và phát hiện điểm nghẽn trước khi Mod gặp thiếu vật liệu giữa ca in.', refresh: 'Làm mới tồn kho', add: 'Thêm cuộn vật liệu', closeAdd: 'Đóng biểu mẫu nhập cuộn', loading: 'Đang tải tồn kho vật liệu...',
@@ -106,8 +106,8 @@ const vnText = {
   },
   adminOverview: {
     heroEyebrow: '// Bảng điều phối',
-    heroTitle: 'Bảng điều phối vận hành',
-    heroDesc: 'Quan sát áp lực hàng đợi, khối lượng duyệt và nhịp vận hành máy in từ một bảng điều phối duy nhất.',
+    heroTitle: 'Dashboard',
+    heroDesc: 'Quan sát hàng đợi, khối lượng duyệt và máy in từ dashboard.',
     historyEyebrow: '// Lưu trữ',
     historyTitle: 'Mỗi yêu cầu, một dòng thời gian.',
     historyDesc: 'Tìm theo tên yêu cầu hoặc mã ID, sau đó lọc theo trạng thái để xem lại toàn bộ hành trình xử lý.',
@@ -136,7 +136,7 @@ const vnText = {
     quickQueueStatus: 'Trạng thái hàng đợi',
     metrics: {
       pending: { label: 'Yêu cầu đang chờ', note: 'Đang chờ duyệt hoặc xếp lịch' },
-      total: { label: 'Tổng số yêu cầu', note: 'Tổng số yêu cầu trong phạm vi hiện tại' },
+      total: { label: 'Tổng số yêu cầu', note: 'Tổng số yêu cầu' },
       printing: { label: 'Đang in', note: 'Đang chạy trên máy in' },
       done: { label: 'Đã hoàn thành', note: 'Đã hoàn thành và ghi nhận' },
     },
@@ -165,8 +165,8 @@ const vnText = {
   },
   moderatorQueue: {
     heroEyebrow: '// Hàng đợi duyệt',
-    heroTitle: 'Giữ luồng kiểm duyệt gọn, rõ và không bị tắc.',
-    heroDesc: 'Tìm yêu cầu cần xử lý, xem nhanh thông tin vật liệu và thao tác ngay trong cùng một bàn điều phối. Tất cả thay đổi trạng thái đều phản ánh trực tiếp vào hàng đợi.',
+    heroTitle: 'Xử lý hàng đợi, đơn cần duyệt.',
+    heroDesc: 'Tìm yêu cầu cần xử lý, xem nhanh thông tin vật liệu và thao tác.',
     cards: {
       pending: { label: 'Chờ duyệt', note: 'Các yêu cầu cần kiểm tra trước khi chốt lịch in.' },
       printing: { label: 'Đang in', note: 'Những job đã được đưa lên máy và đang chạy.' },

@@ -1098,6 +1098,16 @@ article {
   color: rgba(246, 239, 228, 0.45);
 }
 
+.app-control option {
+  background-color: #ffffff;
+  color: #1e1713;
+}
+
+.dark .app-control option {
+  background-color: #10202b;
+  color: #f6efe4;
+}
+
 .app-search-field {
   position: relative;
 }

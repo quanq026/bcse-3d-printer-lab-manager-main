@@ -28,6 +28,18 @@ type InventoryDraft = Omit<FilamentInventory, 'id' | 'status'>;
 
 const MATERIALS: MaterialType[] = [MaterialType.PLA, MaterialType.PETG, MaterialType.TPU, MaterialType.ABS];
 const COLOR_PRESET_VALUES = ['White', 'Black', 'Gray', 'Blue', 'Green', 'Red', 'Yellow', 'Orange', 'Purple', 'Pink'] as const;
+const COLOR_MAP: Record<string, string> = {
+  White: '#FFFFFF',
+  Black: '#000000',
+  Gray: '#6B7280',
+  Blue: '#2563EB',
+  Green: '#16A34A',
+  Red: '#DC2626',
+  Yellow: '#EAB308',
+  Orange: '#F97316',
+  Purple: '#9333EA',
+  Pink: '#EC4899',
+};
 
 const emptyNew = (): InventoryDraft => ({
   material: MaterialType.PLA,
@@ -50,6 +62,8 @@ export const AdminInventory: React.FC = () => {
     value,
     label: colors[value.toLowerCase() as keyof typeof colors] || value,
   }));
+
+  const getColorHex = (colorName: string) => COLOR_MAP[colorName] || (colorName.toLowerCase() === 'custom' ? '#808080' : colorName);
 
   const areaLabel = (area?: string) => AREA_LABELS[area || ''] || area || colors.other;
   const statusLabels: Record<string, string> = {
@@ -225,15 +239,60 @@ export const AdminInventory: React.FC = () => {
                 <label className="grid gap-2"><span className="app-overline">{copy.material}</span><select value={newItem.material} onChange={(event) => setNewItem({ ...newItem, material: event.target.value as MaterialType })} className="app-control rounded-[18px]">{MATERIALS.map((material) => <option key={material}>{material}</option>)}</select></label>
             <label className="grid gap-2"><span className="app-overline">{copy.brand}</span><input type="text" value={newItem.brand} onChange={(event) => setNewItem({ ...newItem, brand: event.target.value })} placeholder={copy.brandPlaceholder} className="app-control rounded-[18px]" /></label>
             <label className="grid gap-2"><span className="app-overline">{copy.location}</span><input type="text" value={newItem.location} onChange={(event) => setNewItem({ ...newItem, location: event.target.value })} placeholder={copy.locationPlaceholder} className="app-control rounded-[18px]" /></label>
-            <label className="grid gap-2 xl:col-span-2">
+            <div className="grid gap-3 md:col-span-2">
               <span className="app-overline">{copy.color}</span>
-              <select value={COLOR_PRESETS.some((color) => color.value === newItem.color) ? newItem.color : '__custom'} onChange={(event) => { if (event.target.value === '__custom') setNewItem({ ...newItem, color: '' }); else setNewItem({ ...newItem, color: event.target.value }); }} className="app-control rounded-[18px]">
-                <option value="" disabled>{copy.selectPresetColor}</option>
-                {COLOR_PRESETS.map((color) => <option key={color.value} value={color.value}>{color.label}</option>)}
-                <option value="__custom">{copy.customColor}</option>
-              </select>
-              {!COLOR_PRESETS.some((color) => color.value === newItem.color) && <input type="text" value={newItem.color} onChange={(event) => setNewItem({ ...newItem, color: event.target.value })} placeholder={copy.customColorPlaceholder} className="app-control rounded-[18px]" />}
-            </label>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_PRESETS.map((color) => {
+                  const isActive = newItem.color === color.value;
+                  return (
+                    <button
+                      key={color.value}
+                      onClick={() => setNewItem({ ...newItem, color: color.value })}
+                      title={color.label}
+                      className={cn(
+                        "group relative flex h-10 w-10 items-center justify-center rounded-full border transition-all",
+                        isActive 
+                          ? "border-[var(--landing-accent)] ring-2 ring-[var(--landing-accent)] ring-offset-2 dark:ring-offset-slate-900" 
+                          : "border-slate-200 hover:border-slate-300 dark:border-white/10 dark:hover:border-white/20"
+                      )}
+                    >
+                      <span 
+                        className="h-7 w-7 rounded-full shadow-inner" 
+                        style={{ backgroundColor: COLOR_MAP[color.value] || '#808080' }} 
+                      />
+                      {isActive && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Check size={14} className={color.value === 'White' ? 'text-slate-900' : 'text-white'} />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setNewItem({ ...newItem, color: '' })}
+                  className={cn(
+                    "flex min-h-[40px] items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold transition-all",
+                    !COLOR_PRESET_VALUES.includes(newItem.color as any) && newItem.color !== '' 
+                      ? "border-[var(--landing-accent)] bg-[rgba(239,125,87,0.12)] text-[var(--landing-accent)]" 
+                      : "border-slate-200 hover:border-slate-300 dark:border-white/10 dark:hover:border-white/20"
+                  )}
+                >
+                  <Plus size={14} />
+                  {copy.customColor}
+                </button>
+              </div>
+              {(!COLOR_PRESET_VALUES.includes(newItem.color as any) || newItem.color === '') && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={newItem.color}
+                    onChange={(event) => setNewItem({ ...newItem, color: event.target.value })}
+                    placeholder={copy.customColorPlaceholder}
+                    className="app-control rounded-[18px]"
+                  />
+                </div>
+              )}
+            </div>
             <label className="grid gap-2"><span className="app-overline">{copy.remainingGrams}</span><input type="number" value={newItem.remainingGrams} onChange={(event) => setNewItem({ ...newItem, remainingGrams: Number.parseInt(event.target.value, 10) || 0 })} className="app-control rounded-[18px]" /></label>
             <label className="grid gap-2"><span className="app-overline">{copy.threshold}</span><input type="number" value={newItem.threshold} onChange={(event) => setNewItem({ ...newItem, threshold: Number.parseInt(event.target.value, 10) || 0 })} className="app-control rounded-[18px]" /></label>
           </div>
@@ -304,7 +363,10 @@ export const AdminInventory: React.FC = () => {
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <p className="app-overline">#{item.id}</p>
-                                <p className="mt-2 text-lg font-black text-slate-900 dark:text-[var(--landing-text)]">{item.material} / {item.color}</p>
+                                <p className="mt-2 inline-flex items-center gap-2 text-lg font-black text-slate-900 dark:text-[var(--landing-text)]">
+                                  <span className="h-4 w-4 shrink-0 rounded-sm border border-black/10 dark:border-white/20" style={{ backgroundColor: getColorHex(item.color) }} />
+                                  {item.material} / {item.color}
+                                </p>
                                 <p className="mt-1 text-xs text-slate-500 dark:text-[var(--landing-muted)]">{item.brand || copy.noBrand} / {item.location || copy.noShelf}</p>
                               </div>
                               <span className={statusTone(item.status)}>{statusLabels[item.status] || item.status}</span>
@@ -348,7 +410,12 @@ export const AdminInventory: React.FC = () => {
                                 <td className="px-6 py-5 text-xs font-black text-slate-900 dark:text-[var(--landing-text)]">{item.id}</td>
                                 <td className="px-6 py-5 text-xs font-semibold text-slate-700 dark:text-white/80">{item.material}</td>
                                 <td className="px-6 py-5 text-xs text-slate-500 dark:text-[var(--landing-muted)]">{item.brand || copy.noBrand}</td>
-                                <td className="px-6 py-5 text-xs text-slate-500 dark:text-[var(--landing-muted)]">{item.color}</td>
+                                <td className="px-6 py-5 text-xs text-slate-500 dark:text-[var(--landing-muted)]">
+                                  <div className="flex items-center gap-2">
+                                    <span className="h-3.5 w-3.5 shrink-0 rounded-sm border border-black/10 dark:border-white/20" style={{ backgroundColor: getColorHex(item.color) }} />
+                                    {item.color}
+                                  </div>
+                                </td>
                                 <td className="px-6 py-5">
                                   {editId === item.id ? (
                                     <div className="grid gap-2 lg:grid-cols-[120px_auto_auto]">
