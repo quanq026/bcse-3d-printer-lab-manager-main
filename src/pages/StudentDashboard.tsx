@@ -363,7 +363,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
   if (isOpsRole) {
     return (
       <div className="space-y-6">
-        <section className="app-panel grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] lg:px-8 lg:py-8">
+        <section className="app-panel flex flex-col gap-6 px-6 py-6 lg:px-8 lg:py-8">
           <div>
             <p className="app-eyebrow">{adminCopy.heroEyebrow}</p>
             <h2 className="app-display-sm mt-3">{adminCopy.heroTitle}</h2>
@@ -385,7 +385,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
               </button>
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="app-panel-soft app-hover-box px-4 py-4">
               <p className="app-overline">{adminCopy.userCardTitle}</p>
               <p className="mt-3 text-lg font-semibold text-slate-900 dark:text-[var(--landing-text)]">{currentUser?.fullName || shared.systemUser}</p>
@@ -880,7 +880,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
 
   return (
     <div className="space-y-6">
-      <section className="app-panel grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] lg:px-8 lg:py-8">
+      <section className="app-panel flex flex-col gap-6 px-6 py-6 lg:px-8 lg:py-8">
         <div>
           <p className="app-eyebrow">{adminCopy.heroEyebrow}</p>
           <h2 className="app-display-sm mt-3">{role === Role.STUDENT ? adminCopy.studentHeroTitle : adminCopy.heroTitle}</h2>
@@ -913,7 +913,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
             </button>
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="app-panel-soft app-hover-box px-4 py-4">
             <p className="app-overline">{adminCopy.userCardTitle}</p>
             <p className="mt-3 text-lg font-semibold text-slate-900 dark:text-[var(--landing-text)]">{currentUser?.fullName || shared.systemUser}</p>

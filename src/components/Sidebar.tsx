@@ -86,8 +86,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, activePage, onPageChange
 
         <div className="border-b border-white/10 px-5 py-6">
           <button onClick={() => handlePageChange('dashboard')} className="app-sidebar-brand group w-full text-left">
-            <div className="app-sidebar-brand-mark">
-              <AppIcon icon="solar:printer-2-bold" size={18} />
+            <div className="app-sidebar-brand-mark p-1 flex items-center justify-center">
+              <img src="/images/logo.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/40">{copy.sidebar.brandEyebrow}</p>

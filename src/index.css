@@ -261,14 +261,15 @@ textarea:disabled {
 }
 
 .landing-brand-mark {
-  width: 62px;
-  height: 62px;
+  width: 80px;
+  height: 80px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(246, 239, 228, 0.18);
-  color: var(--landing-bg);
-  background: linear-gradient(135deg, var(--landing-accent), var(--landing-amber));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
 }
 
 .landing-kicker,
@@ -897,10 +898,10 @@ textarea:disabled {
   height: 44px;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(246, 239, 228, 0.12);
-  background: linear-gradient(135deg, var(--landing-accent), var(--landing-amber));
-  color: #fff8f0;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
 .app-sidebar-brand-chip {

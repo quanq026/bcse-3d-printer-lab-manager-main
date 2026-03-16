@@ -145,8 +145,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           animate={{ opacity: 1, x: 0 }}
           className="landing-masthead"
         >
-          <div className="landing-brand-mark">
-            <AppIcon icon="solar:printer-2-bold" size={26} />
+          <div className="landing-brand-mark p-1 flex items-center justify-center">
+            <img src="/images/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <h1 className="landing-brand-title">BCSE 3D Lab</h1>

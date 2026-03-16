@@ -371,7 +371,7 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
 
   return (
     <div className="app-admin-squared app-admin-compact space-y-5">
-      <section className="app-panel grid gap-5 px-5 py-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)] lg:px-6 lg:py-6">
+      <section className="app-panel flex flex-col gap-6 px-5 py-5 lg:px-6 lg:py-6">
         <div>
           <p className="app-eyebrow">{copy.heroEyebrow}</p>
           <h2 className="app-display-sm mt-2">{copy.heroTitle}</h2>

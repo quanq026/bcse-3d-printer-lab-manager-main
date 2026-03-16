@@ -49,7 +49,7 @@ const vnText = {
     save: 'Lưu',
   },
   pageMeta: {
-    dashboard: { eyebrow: '// Không gian làm việc', title: 'Tổng quan vận hành', note: 'Theo dõi yêu cầu, kiểm duyệt hàng đợi và quản lý vật tư.' },
+    dashboard: { eyebrow: '// Không gian làm việc', title: 'Tổng quan vận hành', note: 'Trung tâm quản lý 3D Lab' },
     booking: { eyebrow: '// Tạo yêu cầu', title: 'Yêu cầu in mới', note: 'Chuẩn bị file, vật liệu và ghi chú in trước khi yêu cầu được đưa vào hàng đợi duyệt.' },
     history: { eyebrow: '// Lưu trữ', title: 'Lịch sử yêu cầu', note: 'Xem lại các yêu cầu đã gửi, quyết định xếp lịch và những bản in đã hoàn thành.' },
     queue: { eyebrow: '// Kiểm duyệt', title: 'Hàng đợi duyệt', note: 'Xử lý phê duyệt, yêu cầu chỉnh sửa và áp lực xếp lịch trong hàng đợi hiện tại.' },
@@ -71,7 +71,7 @@ const vnText = {
   },
   sidebar: {
     mobileEyebrow: '// Điều hướng', mobileTitle: 'Web điều phối', brandEyebrow: '// 3D LAB', brandTitle: 'Web điều phối',
-    brandNote: 'Theo dõi yêu cầu, kiểm duyệt hàng chờ và giữ trạng thái máy in, vật tư.', sectionLabel: '// Không gian làm việc', logout: 'Đăng xuất',
+    brandNote: 'Trung tâm quản lý 3D Lab', sectionLabel: '// Không gian làm việc', logout: 'Đăng xuất',
     nav: { dashboard: 'Tổng quan', booking: 'Tạo yêu cầu in', history: 'Lịch sử yêu cầu', pricing: 'Bảng giá', 'queue-status': 'Hàng chờ', queue: 'Hàng đợi duyệt', printers: 'Máy in', inventory: 'Vật tư', users: 'Người dùng', analytics: 'Bảng giá & phí', backup: 'Sao lưu', settings: 'Thiết lập', chat: 'Trao đổi' },
   },
   adminPrinters: {
