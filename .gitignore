@@ -59,3 +59,5 @@ tmp-utf8-test2.txt
 ownership-map-out
 ownership-map-sensitive-out
 security-sensitive.csv
+docs/
+test/
