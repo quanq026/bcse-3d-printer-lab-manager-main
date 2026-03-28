@@ -6,6 +6,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { LanguageProvider } from '../src/contexts/LanguageContext';
+import { PerformanceProvider } from '../src/contexts/PerformanceContext';
 import { JobDetail } from '../src/pages/JobDetail';
 import { JobStatus, MaterialSource } from '../src/types';
 
@@ -54,6 +55,10 @@ function installDom() {
     configurable: true,
     value: (id: number) => clearTimeout(id),
   });
+  Object.defineProperty(dom.window.HTMLCanvasElement.prototype, 'getContext', {
+    configurable: true,
+    value: () => ({}),
+  });
 }
 
 beforeEach(() => {
@@ -74,30 +79,32 @@ test('job detail renders fallback label when material type is missing', async ()
 
   await act(async () => {
     root.render(
-      <LanguageProvider>
-        <JobDetail
-          job={{
-            id: 'JOB-1',
-            userId: 'u1',
-            userName: 'Student',
-            jobName: 'Fallback material',
-            description: '',
-            fileName: 'sample.stl',
-            estimatedTime: '',
-            estimatedGrams: 0,
-            actualGrams: 0,
-            materialType: null as any,
-            color: '',
-            materialSource: MaterialSource.OWN,
-            printMode: 'self',
-            status: JobStatus.SUBMITTED,
-            cost: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          }}
-          onBack={() => {}}
-        />
-      </LanguageProvider>,
+      <PerformanceProvider>
+        <LanguageProvider>
+          <JobDetail
+            job={{
+              id: 'JOB-1',
+              userId: 'u1',
+              userName: 'Student',
+              jobName: 'Fallback material',
+              description: '',
+              fileName: 'sample.stl',
+              estimatedTime: '',
+              estimatedGrams: 0,
+              actualGrams: 0,
+              materialType: null as any,
+              color: '',
+              materialSource: MaterialSource.OWN,
+              printMode: 'self',
+              status: JobStatus.SUBMITTED,
+              cost: 0,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }}
+            onBack={() => {}}
+          />
+        </LanguageProvider>
+      </PerformanceProvider>,
     );
     await Promise.resolve();
   });

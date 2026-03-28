@@ -3,6 +3,8 @@ import { LogOut, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { AppIcon } from './AppIcon';
 import { useLang } from '../contexts/LanguageContext';
+import { usePerformance } from '../contexts/PerformanceContext';
+import { getSharedLayoutConfig } from '../lib/motionPresets';
 import { getUiText } from '../lib/uiText';
 import { cn } from '../lib/utils';
 import { Role } from '../types';
@@ -20,6 +22,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ role, activePage, onPageChange, onLogout, currentUser, isMobileOpen, onCloseMobile }) => {
   const { lang } = useLang();
+  const { motionLevel } = usePerformance();
   const copy = getUiText(lang);
 
   const menuItems = [
@@ -113,9 +116,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, activePage, onPageChange
                 >
                   {isActive && (
                     <motion.div
-                      layoutId="sidebar-active"
                       className="absolute inset-0 bg-white/10"
-                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                      {...getSharedLayoutConfig(motionLevel, 'sidebar-active', { type: 'spring', bounce: 0.2, duration: 0.6 })}
                     />
                   )}
                   <div className="relative z-10 flex items-center gap-3">

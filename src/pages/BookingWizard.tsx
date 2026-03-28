@@ -24,6 +24,8 @@ import { MaterialType, MaterialSource } from '../types';
 import { api } from '../lib/api';
 import { FilePreview } from '../components/FilePreview';
 import { useLang } from '../contexts/LanguageContext';
+import { usePerformance } from '../contexts/PerformanceContext';
+import { pickMotionConfig } from '../lib/motionPresets';
 import { getUiText, fillText } from '../lib/uiText';
 import {
   buildCreateJobPayload,
@@ -63,6 +65,7 @@ const SUB_SLOTS: Record<string, string[]> = {
 
 export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCancel }) => {
   const { t, lang } = useLang();
+  const { motionLevel } = usePerformance();
   const text = getUiText(lang);
   const bw = text.bookingWizard;
   const clr = text.colors;
@@ -1500,10 +1503,21 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
+            {...pickMotionConfig(motionLevel, {
+              full: {
+                initial: { opacity: 0, x: 20 },
+                animate: { opacity: 1, x: 0 },
+                exit: { opacity: 0, x: -20 },
+                transition: { duration: 0.3 },
+              },
+              reduced: {
+                initial: { opacity: 0 },
+                animate: { opacity: 1 },
+                exit: { opacity: 0 },
+                transition: { duration: 0.14 },
+              },
+              off: {},
+            })}
           >
             {renderStep()}
           </motion.div>

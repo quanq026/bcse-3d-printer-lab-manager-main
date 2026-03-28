@@ -12,8 +12,10 @@ import {
 import { motion } from 'motion/react';
 import { AppIcon } from '../components/AppIcon';
 import { useLang } from '../contexts/LanguageContext';
+import { usePerformance } from '../contexts/PerformanceContext';
 import { api } from '../lib/api';
 import { getJobMaterialSummary } from '../lib/jobPresentation';
+import { pickMotionConfig } from '../lib/motionPresets';
 import { fillText, getUiText } from '../lib/uiText';
 import { cn } from '../lib/utils';
 import { StatusChip } from '../components/StatusChip';
@@ -68,6 +70,7 @@ function getTrackerIcon(status: string) {
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking, onSelectJob, onPageChange, role, currentUser, activePage }) => {
   const isHistoryPage = activePage === 'history';
   const { lang, t } = useLang();
+  const { motionLevel } = usePerformance();
   const ui = getUiText(lang);
   const shared = ui.shared;
   const adminCopy = ui.adminOverview;
@@ -424,10 +427,20 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
           {opsKpiCards.map((card, index) => (
             <motion.article
               key={card.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ y: -5, transition: { duration: 0.2 } }}
+              {...pickMotionConfig(motionLevel, {
+                full: {
+                  initial: { opacity: 0, y: 20 },
+                  animate: { opacity: 1, y: 0 },
+                  transition: { delay: index * 0.1 },
+                  whileHover: { y: -5, transition: { duration: 0.2 } },
+                },
+                reduced: {
+                  initial: { opacity: 0 },
+                  animate: { opacity: 1 },
+                  transition: { duration: 0.16, delay: index * 0.04 },
+                },
+                off: {},
+              })}
               className="app-panel app-hover-box px-5 py-5"
             >
               <div className="flex items-start justify-between gap-4">
@@ -693,10 +706,20 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
       {kpiCards.map((card, index) => (
         <motion.article
           key={card.label}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
-          whileHover={{ y: -5, transition: { duration: 0.2 } }}
+          {...pickMotionConfig(motionLevel, {
+            full: {
+              initial: { opacity: 0, y: 20 },
+              animate: { opacity: 1, y: 0 },
+              transition: { delay: index * 0.1 },
+              whileHover: { y: -5, transition: { duration: 0.2 } },
+            },
+            reduced: {
+              initial: { opacity: 0 },
+              animate: { opacity: 1 },
+              transition: { duration: 0.16, delay: index * 0.04 },
+            },
+            off: {},
+          })}
           className="app-panel app-hover-box px-5 py-5"
         >
           <div className="flex items-start justify-between gap-4">

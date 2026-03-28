@@ -17,8 +17,10 @@ import { AppToast } from '../components/feedback/AppToast';
 import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 import { useToast } from '../components/feedback/useToast';
 import { useLang } from '../contexts/LanguageContext';
+import { usePerformance } from '../contexts/PerformanceContext';
 import { MaterialType, type FilamentInventory } from '../types';
 import { api } from '../lib/api';
+import { pickMotionConfig } from '../lib/motionPresets';
 import { fillText, getUiText } from '../lib/uiText';
 import { cn } from '../lib/utils';
 
@@ -56,6 +58,7 @@ const emptyNew = (): InventoryDraft => ({
 
 export const AdminInventory: React.FC = () => {
   const { lang } = useLang();
+  const { motionLevel } = usePerformance();
   const text = getUiText(lang);
   const copy = text.adminInventory;
   const shared = text.shared;
@@ -203,8 +206,19 @@ export const AdminInventory: React.FC = () => {
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/8">
         <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${Math.min((item.remainingGrams / 1000) * 100, 100)}%` }}
+          {...pickMotionConfig(motionLevel, {
+            full: {
+              initial: { width: 0 },
+              animate: { width: `${Math.min((item.remainingGrams / 1000) * 100, 100)}%` },
+            },
+            reduced: {
+              initial: { width: `${Math.min((item.remainingGrams / 1000) * 100, 100)}%` },
+              animate: { width: `${Math.min((item.remainingGrams / 1000) * 100, 100)}%` },
+            },
+            off: {
+              style: { width: `${Math.min((item.remainingGrams / 1000) * 100, 100)}%` },
+            },
+          })}
           className={cn('h-full rounded-full transition-colors', item.remainingGrams < 200 ? 'bg-red-500' : item.remainingGrams < 500 ? 'bg-amber-500' : 'bg-emerald-500')}
         />
       </div>
@@ -242,10 +256,20 @@ export const AdminInventory: React.FC = () => {
             {stats.map((stat, idx) => (
               <motion.div
                 key={stat.label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.1 }}
-                whileHover={{ y: -5 }}
+                {...pickMotionConfig(motionLevel, {
+                  full: {
+                    initial: { opacity: 0, scale: 0.9 },
+                    animate: { opacity: 1, scale: 1 },
+                    transition: { delay: idx * 0.1 },
+                    whileHover: { y: -5 },
+                  },
+                  reduced: {
+                    initial: { opacity: 0 },
+                    animate: { opacity: 1 },
+                    transition: { duration: 0.16, delay: idx * 0.04 },
+                  },
+                  off: {},
+                })}
                 className="app-hover-box app-metric-card rounded-[26px]"
               >
                 <div className="flex items-start justify-between gap-4">

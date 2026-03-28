@@ -22,6 +22,8 @@ import { cn } from '../lib/utils';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLang } from '../contexts/LanguageContext';
+import { usePerformance } from '../contexts/PerformanceContext';
+import { getSharedLayoutConfig, pickMotionConfig } from '../lib/motionPresets';
 import { getJobDetailExperience, getUiText, fillText } from '../lib/uiText';
 import { getJobMaterialDetail } from '../lib/jobPresentation';
 
@@ -33,6 +35,7 @@ interface JobDetailProps {
 export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
   const { role } = useAuth();
   const { lang } = useLang();
+  const { motionLevel } = usePerformance();
   const copy = getUiText(lang);
   const jobDetailExperience = getJobDetailExperience(lang, role);
   const { toast, dismissToast, showError, showSuccess } = useToast();
@@ -99,11 +102,22 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
     { id: 'timeline', label: copy.jobDetail.tabTimeline, icon: Clock },
     { id: 'files', label: copy.jobDetail.tabFiles, icon: Package },
   ].filter((tab) => jobDetailExperience.visibleTabs.includes(tab.id));
+  const pageMotion = pickMotionConfig(motionLevel, {
+    full: {
+      initial: { opacity: 0, y: 15 },
+      animate: { opacity: 1, y: 0 },
+    },
+    reduced: {
+      initial: { opacity: 0 },
+      animate: { opacity: 1 },
+      transition: { duration: 0.14 },
+    },
+    off: {},
+  });
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
+      {...pageMotion}
       className="mx-auto max-w-5xl space-y-6"
     >
       <AppToast toast={toast} onClose={dismissToast} />
@@ -202,9 +216,8 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
           >
             {activeTab === tab.id && (
               <motion.div
-                layoutId="job-detail-tab"
                 className="absolute inset-0 z-0 bg-white"
-                transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
+                {...getSharedLayoutConfig(motionLevel, 'job-detail-tab', { type: 'spring', bounce: 0.2, duration: 0.5 })}
               />
             )}
             <div className="relative z-10 flex items-center gap-2">

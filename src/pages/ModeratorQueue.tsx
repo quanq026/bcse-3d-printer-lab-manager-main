@@ -18,8 +18,10 @@ import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 import { useToast } from '../components/feedback/useToast';
 import { StatusChip } from '../components/StatusChip';
 import { useLang } from '../contexts/LanguageContext';
+import { usePerformance } from '../contexts/PerformanceContext';
 import { api } from '../lib/api';
 import { getJobMaterialSummary } from '../lib/jobPresentation';
+import { getSharedLayoutConfig, pickMotionConfig } from '../lib/motionPresets';
 import { fillText, getUiText } from '../lib/uiText';
 import { cn } from '../lib/utils';
 import type { PrintJob, Printer, PricingRule, ServiceFee } from '../types';
@@ -52,6 +54,7 @@ const MODERATOR_STATUS_OPTIONS = [
 
 export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) => {
   const { lang } = useLang();
+  const { motionLevel } = usePerformance();
   const text = getUiText(lang);
   const copy = text.moderatorQueue;
   const shared = text.shared;
@@ -425,10 +428,20 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
           ].map((card, index) => (
             <motion.article
               key={card.label}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ y: -4, transition: { duration: 0.2 } }}
+              {...pickMotionConfig(motionLevel, {
+                full: {
+                  initial: { opacity: 0, y: 10 },
+                  animate: { opacity: 1, y: 0 },
+                  transition: { delay: index * 0.1 },
+                  whileHover: { y: -4, transition: { duration: 0.2 } },
+                },
+                reduced: {
+                  initial: { opacity: 0 },
+                  animate: { opacity: 1 },
+                  transition: { duration: 0.16, delay: index * 0.04 },
+                },
+                off: {},
+              })}
               className="app-panel-soft app-hover-box px-4 py-4"
             >
               <div className="flex items-start justify-between gap-3">
@@ -494,9 +507,19 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
                 {filteredJobs.map((job, index) => (
                   <motion.button
                     key={job.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
+                    {...pickMotionConfig(motionLevel, {
+                      full: {
+                        initial: { opacity: 0, x: -10 },
+                        animate: { opacity: 1, x: 0 },
+                        transition: { delay: index * 0.05 },
+                      },
+                      reduced: {
+                        initial: { opacity: 0 },
+                        animate: { opacity: 1 },
+                        transition: { duration: 0.12, delay: index * 0.02 },
+                      },
+                      off: {},
+                    })}
                     onClick={() => setSelectedId(job.id)}
                     className={cn(
                       'app-panel-soft app-hover-box block w-full px-4 py-4 text-left relative',
@@ -505,8 +528,8 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
                   >
                     {selectedId === job.id && (
                       <motion.div
-                        layoutId="active-moderator-job"
                         className="absolute inset-0 z-0 bg-[rgba(239,125,87,0.08)]"
+                        {...getSharedLayoutConfig(motionLevel, 'active-moderator-job')}
                       />
                     )}
                     <div className="relative z-10">
@@ -576,10 +599,21 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={selectedId}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ duration: 0.3 }}
+                    {...pickMotionConfig(motionLevel, {
+                      full: {
+                        initial: { opacity: 0, y: 15 },
+                        animate: { opacity: 1, y: 0 },
+                        exit: { opacity: 0, y: -15 },
+                        transition: { duration: 0.3 },
+                      },
+                      reduced: {
+                        initial: { opacity: 0 },
+                        animate: { opacity: 1 },
+                        exit: { opacity: 0 },
+                        transition: { duration: 0.14 },
+                      },
+                      off: {},
+                    })}
                     className="space-y-5"
                   >
                     <section className="app-panel-soft px-4 py-4">
@@ -617,9 +651,19 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
                       ].map((item, idx) => (
                         <motion.article
                           key={item.label}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.05 }}
+                          {...pickMotionConfig(motionLevel, {
+                            full: {
+                              initial: { opacity: 0, y: 10 },
+                              animate: { opacity: 1, y: 0 },
+                              transition: { delay: idx * 0.05 },
+                            },
+                            reduced: {
+                              initial: { opacity: 0 },
+                              animate: { opacity: 1 },
+                              transition: { duration: 0.12, delay: idx * 0.02 },
+                            },
+                            off: {},
+                          })}
                           className="app-panel-soft app-hover-box px-4 py-4"
                         >
                           <p className="app-overline">{item.label}</p>

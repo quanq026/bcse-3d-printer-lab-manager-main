@@ -12,6 +12,8 @@ import { AppIcon } from '../components/AppIcon';
 import { cn } from '../lib/utils';
 import { api } from '../lib/api';
 import { useLang } from '../contexts/LanguageContext';
+import { usePerformance } from '../contexts/PerformanceContext';
+import { getSharedLayoutConfig, pickMotionConfig } from '../lib/motionPresets';
 import { getUiText } from '../lib/uiText';
 import type { User } from '../types';
 
@@ -23,6 +25,7 @@ const VJU_REGEX = /@(st\.vju\.ac\.vn|vju\.ac\.vn)$/i;
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   const { lang, setLang, t } = useLang();
+  const { motionLevel } = usePerformance();
   const copy = getUiText(lang);
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
@@ -62,6 +65,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     ],
     [t]
   );
+  const mastheadMotion = pickMotionConfig(motionLevel, {
+    full: { initial: { opacity: 0, x: -20 }, animate: { opacity: 1, x: 0 } },
+    reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.16 } },
+    off: {},
+  });
+  const editorialMotion = pickMotionConfig(motionLevel, {
+    full: { initial: { opacity: 0, y: 30 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.15, duration: 0.8, ease: [0.16, 1, 0.3, 1] } },
+    reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.18 } },
+    off: {},
+  });
+  const featureMotion = (index: number) => pickMotionConfig(motionLevel, {
+    full: { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.7 + index * 0.1 }, whileHover: { scale: 1.02, y: -4 } },
+    reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.16, delay: index * 0.04 } },
+    off: {},
+  });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,8 +140,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
       <section className="landing-hero">
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
+          {...mastheadMotion}
           className="landing-masthead"
         >
           <div className="landing-brand-mark p-1 flex items-center justify-center">
@@ -139,9 +156,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          {...editorialMotion}
           className="landing-editorial"
         >
           <div className="landing-section-marker">// ACCESS PORTAL</div>
@@ -149,27 +164,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           <h2 className="landing-display">
             <motion.span
               style={{ display: 'block' }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              {...pickMotionConfig(motionLevel, {
+                full: { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.3 } },
+                reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.12 } },
+                off: {},
+              })}
               className="landing-display-line"
             >
               {t('heroTitle')}
             </motion.span>
             <motion.span
               style={{ display: 'block' }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              {...pickMotionConfig(motionLevel, {
+                full: { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.4 } },
+                reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.12 } },
+                off: {},
+              })}
               className="landing-display-line landing-display-accent"
             >
               {t('heroHighlight')}
             </motion.span>
           </h2>
           <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
+            {...pickMotionConfig(motionLevel, {
+              full: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { delay: 0.6 } },
+              reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.12 } },
+              off: {},
+            })}
             className="landing-copy"
           >
             {t('heroDesc')}
@@ -180,10 +201,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           {heroFeatures.map(({ icon, title, desc }, index) => (
             <motion.article
               key={title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 + index * 0.1 }}
-              whileHover={{ scale: 1.02, y: -4 }}
+              {...featureMotion(index)}
               className="landing-feature-card app-hover-box"
             >
               <div className="landing-feature-visual">
@@ -201,9 +219,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         </div>
 
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.2 }}
+          {...pickMotionConfig(motionLevel, {
+            full: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { delay: 1.2 } },
+            reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.14 } },
+            off: {},
+          })}
           className="landing-footer-meta flex items-center justify-between w-full"
         >
           <span>{t('copyright')}</span>
@@ -235,9 +255,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
       <section className="landing-auth-wrap">
         <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          {...pickMotionConfig(motionLevel, {
+            full: { initial: { opacity: 0, scale: 0.96 }, animate: { opacity: 1, scale: 1 }, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+            reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.16 } },
+            off: {},
+          })}
           className="landing-auth-panel"
         >
           <div className="landing-auth-topbar">
@@ -255,9 +277,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                   >
                     {isActive && (
                       <motion.div
-                        layoutId="lang-active"
                         className="absolute inset-0 bg-[var(--landing-amber)] rounded-lg"
-                        transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                        {...getSharedLayoutConfig(motionLevel, 'lang-active', { type: 'spring', bounce: 0.2, duration: 0.6 })}
                       />
                     )}
                     <span className="relative z-20">{l}</span>
@@ -270,9 +291,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           <div className="landing-auth-header">
             <motion.div
               key={tab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.22 }}
+              {...pickMotionConfig(motionLevel, {
+                full: { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.22 } },
+                reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.12 } },
+                off: {},
+              })}
             >
               <h2 id="auth-title" className="landing-auth-title">
                 {tab === 'login' ? t('welcome') : t('registerTitle')}
@@ -300,9 +323,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 <span className="relative z-10">{tabItem === 'login' ? t('login') : t('register')}</span>
                 {tab === tabItem && (
                   <motion.div
-                    layoutId="auth-tab-active"
                     className="absolute inset-0 z-0 bg-white shadow-sm"
-                    transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
+                    {...getSharedLayoutConfig(motionLevel, 'auth-tab-active', { type: 'spring', bounce: 0.25, duration: 0.5 })}
                   />
                 )}
               </button>
@@ -312,9 +334,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           <AnimatePresence>
             {error && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
+                {...pickMotionConfig(motionLevel, {
+                  full: { initial: { opacity: 0, height: 0 }, animate: { opacity: 1, height: 'auto' }, exit: { opacity: 0, height: 0 } },
+                  reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.12 } },
+                  off: {},
+                })}
                 className="landing-auth-alert is-error"
                 role="alert"
               >
@@ -325,9 +349,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
             {success && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
+                {...pickMotionConfig(motionLevel, {
+                  full: { initial: { opacity: 0, height: 0 }, animate: { opacity: 1, height: 'auto' }, exit: { opacity: 0, height: 0 } },
+                  reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.12 } },
+                  off: {},
+                })}
                 className="landing-auth-alert is-success"
                 role="status"
               >
@@ -339,9 +365,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
           <motion.div
             key={tab}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.22 }}
+            {...pickMotionConfig(motionLevel, {
+              full: { initial: { opacity: 0, x: 20 }, animate: { opacity: 1, x: 0 }, transition: { duration: 0.22 } },
+              reduced: { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.12 } },
+              off: {},
+            })}
           >
             {tab === 'login' ? (
               <form onSubmit={handleLogin} className="landing-auth-form">
@@ -382,7 +410,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                     </div>
                   </Field>
 
-                  <SubmitBtn loading={loading} label={t('login')} />
+                  <SubmitBtn loading={loading} label={t('login')} motionLevel={motionLevel} />
               </form>
             ) : (
               <form onSubmit={handleRegister} className="landing-auth-form">
@@ -497,6 +525,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                     loading={loading}
                     label={t('register')}
                     disabled={(!!email && !VJU_REGEX.test(email)) || (!!confirmPass && confirmPass !== password)}
+                    motionLevel={motionLevel}
                   />
               </form>
             )}
@@ -517,11 +546,14 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function SubmitBtn({ loading, label, disabled = false }: { loading: boolean; label: string; disabled?: boolean }) {
+function SubmitBtn({ loading, label, disabled = false, motionLevel }: { loading: boolean; label: string; disabled?: boolean; motionLevel: 'off' | 'reduced' | 'full' }) {
   return (
     <motion.button
-      whileHover={{ scale: 1.01, x: 5 }}
-      whileTap={{ scale: 0.98 }}
+      {...pickMotionConfig(motionLevel, {
+        full: { whileHover: { scale: 1.01, x: 5 }, whileTap: { scale: 0.98 } },
+        reduced: { whileTap: { scale: 0.99 } },
+        off: {},
+      })}
       type="submit"
       disabled={loading || disabled}
       className="landing-submit"
