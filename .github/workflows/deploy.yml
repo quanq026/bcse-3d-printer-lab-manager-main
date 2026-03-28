@@ -28,6 +28,7 @@ jobs:
         run: |
           tar -czf deploy-package.tar.gz \
             dist/ \
+            src/ \
             server/ \
             deploy/ \
             package.json \
