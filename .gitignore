@@ -61,5 +61,3 @@ ownership-map-out
 ownership-map-sensitive-out
 security-sensitive.csv
 docs/
-test/
-tests/
