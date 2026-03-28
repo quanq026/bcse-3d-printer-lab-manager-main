@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, KeyRound, Save } from 'lucide-react';
 import { AppIcon } from '../components/AppIcon';
 import { useAuth } from '../contexts/AuthContext';
 import { useLang } from '../contexts/LanguageContext';
+import { usePerformance } from '../contexts/PerformanceContext';
 import { api } from '../lib/api';
 import { getSettingsExperienceCopy, getUiText } from '../lib/uiText';
 import type { AdminUser } from '../types';
@@ -28,6 +29,7 @@ function SettingField({ label, hint, icon, children }: { label: string; hint: st
 export const AdminSettings: React.FC = () => {
   const { lang } = useLang();
   const { role, currentUser, logout } = useAuth();
+  const { preferenceMode, setPreferenceMode, effectiveMode } = usePerformance();
   const text = getUiText(lang);
   const copy = text.adminSettings;
   const shared = text.shared;
@@ -59,6 +61,12 @@ export const AdminSettings: React.FC = () => {
     newPassword: '',
     confirmPassword: '',
   });
+  const performanceModes = [
+    { id: 'auto', label: copy.performance.auto },
+    { id: 'performance', label: copy.performance.performance },
+    { id: 'balanced', label: copy.performance.balanced },
+    { id: 'full', label: copy.performance.full },
+  ] as const;
 
   const selfPasswordCopy = lang === 'JP'
     ? {
@@ -347,6 +355,43 @@ export const AdminSettings: React.FC = () => {
             <KeyRound size={16} />
             {selfSaving ? copy.saving : selfPasswordCopy.save}
           </button>
+        </div>
+      </section>
+
+      <section className="app-panel app-hover-box rounded-[32px] px-5 py-6 sm:px-6">
+        <div className="space-y-2">
+          <p className="app-eyebrow">{copy.performance.eyebrow}</p>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-[var(--landing-text)]">{copy.performance.title}</h2>
+          <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-[var(--landing-muted)]">
+            {copy.performance.desc}
+          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-white/35">
+            {copy.performance.active.replace('{mode}', copy.performance[effectiveMode])}
+          </p>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {performanceModes.map((mode) => {
+            const isActive = preferenceMode === mode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                data-performance-mode={mode.id}
+                onClick={() => setPreferenceMode(mode.id)}
+                className={`rounded-[24px] border px-4 py-4 text-left transition-all ${
+                  isActive
+                    ? 'border-[rgba(239,125,87,0.28)] bg-[rgba(239,125,87,0.1)]'
+                    : 'border-[rgba(30,23,19,0.08)] bg-white/55 hover:border-[rgba(239,125,87,0.18)] dark:border-white/8 dark:bg-white/4 dark:hover:border-[rgba(239,125,87,0.22)]'
+                }`}
+              >
+                <p className="app-overline">{mode.label}</p>
+                <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">
+                  {copy.performance.modeDesc[mode.id]}
+                </p>
+              </button>
+            );
+          })}
         </div>
       </section>
 

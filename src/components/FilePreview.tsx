@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import JSZip from 'jszip';
 import { Box } from 'lucide-react';
 import { useLang } from '../contexts/LanguageContext';
+import { usePerformance } from '../contexts/PerformanceContext';
 import { getUiText } from '../lib/uiText';
 
 interface FilePreviewProps {
@@ -57,88 +58,149 @@ function parseSTL(buffer: ArrayBuffer): THREE.BufferGeometry {
   return geometry;
 }
 
-function STLViewer({ buffer }: { buffer: ArrayBuffer }) {
+function STLViewer({ buffer, onError }: { buffer: ArrayBuffer; onError: () => void }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const frameRef = useRef<number>(0);
+  const { stlPreviewMode, maxPixelRatio, recordSample } = usePerformance();
 
   useEffect(() => {
     const el = mountRef.current;
-    if (!el) return;
+    if (!el || stlPreviewMode === 'fallback') return;
 
-    const w = el.clientWidth || 300;
-    const h = el.clientHeight || 220;
+    let isHidden = typeof document !== 'undefined' ? document.hidden : false;
 
-    // Scene
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf8fafc);
+    try {
+      const w = el.clientWidth || 300;
+      const h = el.clientHeight || 220;
 
-    // Camera
-    const camera = new THREE.PerspectiveCamera(45, w / h, 0.01, 10000);
+      // Scene
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xf8fafc);
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(w, h);
-    el.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
+      // Camera
+      const camera = new THREE.PerspectiveCamera(45, w / h, 0.01, 10000);
 
-    // Lighting
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-    dir.position.set(1, 2, 3);
-    scene.add(dir);
-    const dir2 = new THREE.DirectionalLight(0x8ecae6, 0.4);
-    dir2.position.set(-2, -1, -1);
-    scene.add(dir2);
+      // Renderer
+      const renderer = new THREE.WebGLRenderer({ antialias: stlPreviewMode === 'interactive' && maxPixelRatio > 1.25 });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxPixelRatio));
+      renderer.setSize(w, h);
+      el.appendChild(renderer.domElement);
+      rendererRef.current = renderer;
 
-    // Geometry
-    const geometry = parseSTL(buffer);
-    geometry.computeBoundingBox();
-    const box = geometry.boundingBox!;
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    geometry.translate(-center.x, -center.y, -center.z);
+      // Lighting
+      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+      const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+      dir.position.set(1, 2, 3);
+      scene.add(dir);
+      const dir2 = new THREE.DirectionalLight(0x8ecae6, 0.4);
+      dir2.position.set(-2, -1, -1);
+      scene.add(dir2);
 
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const maxDim = Math.max(size.x, size.y, size.z);
+      // Geometry
+      const geometry = parseSTL(buffer);
+      geometry.computeBoundingBox();
+      const box = geometry.boundingBox!;
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      geometry.translate(-center.x, -center.y, -center.z);
 
-    const material = new THREE.MeshPhongMaterial({
-      color: 0x4f90d9,
-      specular: 0x888888,
-      shininess: 40,
-      side: THREE.DoubleSide,
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z);
 
-    camera.position.set(0, 0, maxDim * 2);
-    camera.lookAt(0, 0, 0);
+      const material = new THREE.MeshPhongMaterial({
+        color: 0x4f90d9,
+        specular: 0x888888,
+        shininess: 40,
+        side: THREE.DoubleSide,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
 
-    // Simple auto-rotate
-    let angle = 0;
-    const animate = () => {
-      frameRef.current = requestAnimationFrame(animate);
-      angle += 0.008;
-      mesh.rotation.y = angle;
-      mesh.rotation.x = 0.25;
+      camera.position.set(0, 0, maxDim * 2);
+      camera.lookAt(0, 0, 0);
       renderer.render(scene, camera);
-    };
-    animate();
 
-    return () => {
-      cancelAnimationFrame(frameRef.current);
-      renderer.dispose();
-      if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
-    };
-  }, [buffer]);
+      if (stlPreviewMode === 'static') {
+        return () => {
+          renderer.dispose();
+          if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
+        };
+      }
+
+      let angle = 0;
+      let frames = 0;
+      let sampleStart = 0;
+      let previousTimestamp = 0;
+      let stalledFrames = 0;
+
+      const animate = (timestamp: number) => {
+        if (isHidden) {
+          return;
+        }
+
+        frameRef.current = requestAnimationFrame(animate);
+        angle += 0.008;
+        mesh.rotation.y = angle;
+        mesh.rotation.x = 0.25;
+        renderer.render(scene, camera);
+
+        if (!sampleStart) {
+          sampleStart = timestamp;
+        }
+
+        if (previousTimestamp && timestamp - previousTimestamp > 100) {
+          stalledFrames += 1;
+        }
+
+        previousTimestamp = timestamp;
+        frames += 1;
+
+        if (frames === 45) {
+          const elapsed = Math.max(timestamp - sampleStart, 1);
+          recordSample('preview', {
+            averageFps: (frames * 1000) / elapsed,
+            stalledFrames,
+          });
+        }
+      };
+
+      const handleVisibilityChange = () => {
+        const wasHidden = isHidden;
+        isHidden = document.hidden;
+
+        if (isHidden) {
+          cancelAnimationFrame(frameRef.current);
+          return;
+        }
+
+        if (wasHidden) {
+          frameRef.current = requestAnimationFrame(animate);
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      frameRef.current = requestAnimationFrame(animate);
+
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        cancelAnimationFrame(frameRef.current);
+        renderer.dispose();
+        if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
+      };
+    } catch {
+      onError();
+      return undefined;
+    }
+  }, [buffer, maxPixelRatio, onError, recordSample, stlPreviewMode]);
 
   return <div ref={mountRef} className="w-full h-full" />;
 }
 
 export const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '' }) => {
   const { lang } = useLang();
+  const { stlPreviewMode } = usePerformance();
   const copy = getUiText(lang);
   const unavailableMessage = copy.filePreview.unavailable;
   const [state, setState] = useState<'loading' | 'stl' | 'img' | 'error'>('loading');
@@ -218,9 +280,20 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '' }
   }
 
   if (state === 'stl' && stlBuffer) {
+    if (stlPreviewMode === 'fallback') {
+      return (
+        <div className={containerClass}>
+          <div className="flex flex-col items-center gap-2 text-slate-400">
+            <Box size={32} strokeWidth={1} />
+            <span className="text-xs text-center px-2">{errorMsg || unavailableMessage}</span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={containerClass}>
-        <STLViewer buffer={stlBuffer} />
+        <STLViewer buffer={stlBuffer} onError={() => setState('error')} />
         <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/40 text-white text-[10px] font-bold px-2 py-1 rounded-full">
           <Box size={10} />
           {copy.filePreview.threeDPreview}

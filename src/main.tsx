@@ -5,15 +5,18 @@ import './index.css';
 import { AuthProvider } from './contexts/AuthContext.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { LanguageProvider } from './contexts/LanguageContext.tsx';
+import { PerformanceProvider } from './contexts/PerformanceContext.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <LanguageProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </LanguageProvider>
+      <PerformanceProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </LanguageProvider>
+      </PerformanceProvider>
     </ErrorBoundary>
   </StrictMode>,
 );

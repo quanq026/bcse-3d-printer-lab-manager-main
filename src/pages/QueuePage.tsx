@@ -12,6 +12,8 @@ import { StatusChip } from '../components/StatusChip';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 import { useLang } from '../contexts/LanguageContext';
+import { usePerformance } from '../contexts/PerformanceContext';
+import { pickMotionConfig } from '../lib/motionPresets';
 import { getUiText, fillText } from '../lib/uiText';
 import type { User as AppUser, PrintJob } from '../types';
 import { JobStatus } from '../types';
@@ -34,6 +36,7 @@ function formatDateTime(value?: string, fallback = 'Chưa có thời gian') {
 
 export const QueuePage: React.FC<QueuePageProps> = ({ currentUser }) => {
   const { lang } = useLang();
+  const { motionLevel } = usePerformance();
   const copy = getUiText(lang);
   const [jobs, setJobs] = useState<PrintJob[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +87,20 @@ export const QueuePage: React.FC<QueuePageProps> = ({ currentUser }) => {
       note: copy.queuePage.cardPrintingNote,
     },
   ];
+  const summaryCardMotion = (index: number) => pickMotionConfig(motionLevel, {
+    full: {
+      initial: { opacity: 0, scale: 0.95 },
+      animate: { opacity: 1, scale: 1 },
+      transition: { delay: index * 0.1 },
+      whileHover: { scale: 1.02 },
+    },
+    reduced: {
+      initial: { opacity: 0 },
+      animate: { opacity: 1 },
+      transition: { duration: 0.16, delay: index * 0.04 },
+    },
+    off: {},
+  });
 
   return (
     <div className="space-y-6">
@@ -109,10 +126,7 @@ export const QueuePage: React.FC<QueuePageProps> = ({ currentUser }) => {
           {summaryCards.map((card, index) => (
             <motion.article
               key={card.label}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.02 }}
+              {...summaryCardMotion(index)}
               className="app-panel-soft app-hover-box px-4 py-4"
             >
               <div className="flex items-start justify-between gap-3">

@@ -6,7 +6,9 @@ import { Sidebar } from './components/Sidebar';
 import { ThemeToggle } from './components/ThemeToggle';
 import { useAuth } from './contexts/AuthContext';
 import { useLang } from './contexts/LanguageContext';
+import { usePerformance } from './contexts/PerformanceContext';
 import { api } from './lib/api';
+import { pickMotionConfig } from './lib/motionPresets';
 import { createNavigationIntentState, failRequestedJob, requestJobIntent, requestPageIntent, resolveRequestedJob } from './lib/navigationIntent';
 import { fillText, getSettingsExperienceCopy, getUiText } from './lib/uiText';
 import { LandingPage } from './pages/LandingPage';
@@ -40,6 +42,7 @@ function PageLoader() {
 
 export default function App() {
   const { lang } = useLang();
+  const { motionLevel } = usePerformance();
   const copy = getUiText(lang);
   const { isLoggedIn, currentUser, role, login, logout, loading } = useAuth();
   const [navigation, setNavigation] = useState(() => createNavigationIntentState('dashboard'));
@@ -113,6 +116,20 @@ export default function App() {
   const headerMetaToggleLabel = lang === 'JP'
     ? (headerMetaOpen ? 'Hide quick panels' : 'Show quick panels')
     : (headerMetaOpen ? 'Ẩn bảng nhanh' : 'Hiện bảng nhanh');
+
+  const pageMotion = pickMotionConfig(motionLevel, {
+    full: {
+      initial: { opacity: 0, y: 12, scale: 0.995 },
+      animate: { opacity: 1, y: 0, scale: 1 },
+      transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+    },
+    reduced: {
+      initial: { opacity: 0 },
+      animate: { opacity: 1 },
+      transition: { duration: 0.16 },
+    },
+    off: {},
+  });
 
   const renderPage = () => {
     switch (navigation.activePage) {
@@ -252,9 +269,7 @@ export default function App() {
             <Suspense fallback={<PageLoader key={`${navigation.activePage}-${navigation.pendingJobId ?? 'idle'}`} />}>
               <motion.div
                 key={navigation.activePage + (navigation.selectedJob?.id || navigation.pendingJobId || '')}
-                initial={{ opacity: 0, y: 12, scale: 0.995 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                {...pageMotion}
                 className="h-full"
               >
                 {renderPage()}

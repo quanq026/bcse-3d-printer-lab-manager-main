@@ -6,6 +6,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { LanguageProvider } from '../src/contexts/LanguageContext';
+import { PerformanceProvider } from '../src/contexts/PerformanceContext';
 import { LandingPage } from '../src/pages/LandingPage';
 
 let cleanup: (() => Promise<void>) | null = null;
@@ -57,6 +58,10 @@ function installDom() {
     configurable: true,
     value: (id: number) => clearTimeout(id),
   });
+  Object.defineProperty(dom.window.HTMLCanvasElement.prototype, 'getContext', {
+    configurable: true,
+    value: () => ({}),
+  });
 
   return dom;
 }
@@ -68,9 +73,11 @@ async function renderLandingPage() {
   const root = createRoot(rootElement);
   await act(async () => {
     root.render(
-      <LanguageProvider>
-        <LandingPage onLogin={() => {}} />
-      </LanguageProvider>,
+      <PerformanceProvider>
+        <LanguageProvider>
+          <LandingPage onLogin={() => {}} />
+        </LanguageProvider>
+      </PerformanceProvider>,
     );
     await Promise.resolve();
   });

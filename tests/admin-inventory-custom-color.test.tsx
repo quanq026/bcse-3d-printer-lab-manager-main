@@ -6,6 +6,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { LanguageProvider } from '../src/contexts/LanguageContext';
+import { PerformanceProvider } from '../src/contexts/PerformanceContext';
 import { getUiText } from '../src/lib/uiText';
 import { AdminInventory } from '../src/pages/AdminInventory';
 
@@ -58,6 +59,10 @@ function installDom() {
     configurable: true,
     value: (id: number) => clearTimeout(id),
   });
+  Object.defineProperty(dom.window.HTMLCanvasElement.prototype, 'getContext', {
+    configurable: true,
+    value: () => ({}),
+  });
 }
 
 async function renderAdminInventory() {
@@ -67,9 +72,11 @@ async function renderAdminInventory() {
   const root = createRoot(rootElement);
   await act(async () => {
     root.render(
-      <LanguageProvider>
-        <AdminInventory />
-      </LanguageProvider>,
+      <PerformanceProvider>
+        <LanguageProvider>
+          <AdminInventory />
+        </LanguageProvider>
+      </PerformanceProvider>,
     );
     await Promise.resolve();
   });
