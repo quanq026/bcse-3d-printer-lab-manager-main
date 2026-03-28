@@ -19,6 +19,7 @@ import { useToast } from '../components/feedback/useToast';
 import { StatusChip } from '../components/StatusChip';
 import { useLang } from '../contexts/LanguageContext';
 import { api } from '../lib/api';
+import { getJobMaterialSummary } from '../lib/jobPresentation';
 import { fillText, getUiText } from '../lib/uiText';
 import { cn } from '../lib/utils';
 import type { PrintJob, Printer, PricingRule, ServiceFee } from '../types';
@@ -80,6 +81,10 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
 
   const statusLabel = (value: JobStatus | string) => shared.jobStatuses[value as keyof typeof shared.jobStatuses] || value;
   const materialSourceLabel = (value: MaterialSource | string) => shared.materialSources[value as keyof typeof shared.materialSources] || value;
+  const materialSummary = (job: PrintJob) => getJobMaterialSummary(job, {
+    ownMaterialLabel: 'Tu mang',
+    missingMaterialLabel: 'Chua khai bao',
+  });
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -523,7 +528,7 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
                           {job.estimatedTime || shared.noDuration}
                         </p>
                         <p className="truncate text-[11px] uppercase tracking-[0.16em] text-slate-400 dark:text-white/38">
-                          {job.materialType} • {job.color} • {materialSourceLabel(job.materialSource)}
+                          {materialSummary(job)} • {materialSourceLabel(job.materialSource)}
                         </p>
                       </div>
                     </div>
@@ -605,7 +610,7 @@ export const ModeratorQueue: React.FC<ModeratorQueueProps> = ({ onSelectJob }) =
 
                     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                       {[
-                        { label: copy.summary.material, value: `${selectedJob.materialType} / ${selectedJob.color}` },
+                        { label: copy.summary.material, value: materialSummary(selectedJob) },
                         { label: copy.summary.estimatedGrams, value: `${selectedJob.estimatedGrams || 0}g` },
                         { label: copy.summary.materialSource, value: materialSourceLabel(selectedJob.materialSource) },
                         { label: copy.summary.estimatedTime, value: selectedJob.estimatedTime || shared.noDuration },

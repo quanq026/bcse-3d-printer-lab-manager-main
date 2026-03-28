@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   FileText,
   Printer as PrinterIcon,
@@ -25,8 +25,16 @@ import { api } from '../lib/api';
 import { FilePreview } from '../components/FilePreview';
 import { useLang } from '../contexts/LanguageContext';
 import { getUiText, fillText } from '../lib/uiText';
-
-type PrintMode = 'self' | 'lab_assisted';
+import {
+  buildCreateJobPayload,
+  getAcceptedFileExtensions,
+  normalizeColorsForPrinter,
+  resolveUploadExtension,
+  validateBookingStep,
+  type BookingDraft,
+  type PrintMode,
+  type BookingValidationErrorCode,
+} from '../lib/bookingRules';
 
 interface BookingWizardProps {
   onComplete: () => void;
@@ -70,12 +78,12 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
   const [confirmed, setConfirmed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<BookingDraft>({
     printMode: 'self' as PrintMode,
     materialSource: MaterialSource.LAB,
     jobName: '',
     description: '',
-    materialType: MaterialType.PLA,
+    materialType: null,
     colors: [] as string[],
     customColor: '',
     brand: '',
@@ -84,22 +92,69 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
     estimatedGrams: 0,
     printerId: '',
     preferredDate: '',
-    preferredSlot: 'afternoon',
+    preferredSlot: '',
     preferredSubSlot: '',
     fileName: '',
     nozzleSize: '',
     slicerEngine: '',
   });
 
-  useEffect(() => {
-    Promise.all([api.getPrinters(), api.getPricing(), api.getInventory(), api.getServiceFees()])
-      .then(([p, pr, inv, fees]) => { setPrinters(p); setPricing(pr); setInventory(inv); setServiceFees(fees); })
-      .catch(console.error);
+  const loadReferenceData = useCallback(async () => {
+    const [p, pr, inv, fees] = await Promise.all([
+      api.getPrinters(),
+      api.getPricing(),
+      api.getInventory(),
+      api.getServiceFees(),
+    ]);
+    setPrinters(p);
+    setPricing(pr);
+    setInventory(inv);
+    setServiceFees(fees);
   }, []);
+
+  useEffect(() => {
+    void loadReferenceData().catch(console.error);
+  }, [loadReferenceData]);
 
   const selectedPrinter = printers.find(p => p.id === formData.printerId);
   const isSelf = formData.printMode === 'self';
   const isLabMaterial = formData.materialSource === MaterialSource.LAB;
+  const selectedPrinterHasAMS = selectedPrinter ? !!selectedPrinter.hasAMS : true;
+
+  useEffect(() => {
+    if (step === 2 || step === 4) {
+      void loadReferenceData().catch(console.error);
+    }
+  }, [loadReferenceData, step]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      void loadReferenceData().catch(console.error);
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loadReferenceData]);
+
+  useEffect(() => {
+    if (!isSelf || isLabMaterial) {
+      return;
+    }
+
+    setFormData((current) => {
+      if (current.materialType === null && current.colors.length === 0 && !current.customColor && !current.brand) {
+        return current;
+      }
+
+      return {
+        ...current,
+        materialType: null,
+        colors: [],
+        customColor: '',
+        brand: '',
+      };
+    });
+  }, [isLabMaterial, isSelf]);
 
   // ── Inventory-driven material/color (Shopee-style cross-filtering) ──
   const inStockItems = inventory.filter(i => i.remainingGrams > i.threshold);
@@ -118,6 +173,28 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
   const availableMaterials = selectedColors.length > 0
     ? [...new Set(inStockItems.filter(i => selectedColors.includes(i.color)).map(i => i.material))]
     : allMaterials;
+
+  useEffect(() => {
+    setFormData((current) => {
+      const nextColors = normalizeColorsForPrinter({
+        colors: current.colors,
+        hasAMS: selectedPrinterHasAMS,
+        availableColors,
+      });
+
+      if (
+        nextColors.length === current.colors.length
+        && nextColors.every((color, index) => color === current.colors[index])
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        colors: nextColors,
+      };
+    });
+  }, [availableColors, selectedPrinterHasAMS]);
 
   // Check if lab has stock for selected material
   const labHasStock = inStockItems.some(i => i.material === formData.materialType);
@@ -152,27 +229,59 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
   if (isSelf && !isLabMaterial) skippedSteps.add(2);
   if (!isSelf) skippedSteps.add(4);
 
-  const canNext = () => {
-    if (step === 1) return formData.jobName.trim().length > 0;
-    if (step === 5) return confirmed;
+  const getValidationErrorMessage = (code: BookingValidationErrorCode) => {
+    switch (code) {
+      case 'job-name-required':
+        return bw.jobNameRequired;
+      case 'material-required':
+      case 'color-required':
+        return lang === 'EN' ? 'Select at least one valid color before continuing.' : 'Vui long chon mau hop le truoc khi tiep tuc.';
+      case 'file-required':
+        return isSelf && isLabMaterial ? bw.slicedFileRequired : bw.fileErrorStl;
+      case 'parsed-metrics-required':
+        return lang === 'EN' ? 'A sliced file with valid time and weight is required.' : 'Can file da slice co thong tin thoi gian va khoi luong hop le.';
+      default:
+        return bw.submitFailed;
+    }
+  };
+
+  const validateCurrentStep = () => {
+    if (step === 5 && !confirmed) {
+      setError(bw.confirmTermsError);
+      return false;
+    }
+
+    const code = validateBookingStep({
+      step,
+      draft: formData,
+      availableColors,
+      uploadedFileName: uploadedFile?.fileName || formData.fileName,
+      selectedPrinterHasAMS,
+    });
+
+    if (code) {
+      setError(getValidationErrorMessage(code));
+      return false;
+    }
+
+    setError('');
     return true;
   };
 
-  const nextStep = () => { if (canNext()) setStep(getNextStep(step)); };
+  const nextStep = () => {
+    if (!validateCurrentStep()) return;
+    setStep(getNextStep(step));
+  };
   const prevStep = () => setStep(getPrevStep(step));
 
   // File accept depends on case
-  const acceptedFileTypes = isSelf && isLabMaterial ? '.gcode,.gcode.3mf' : '.stl,.3mf';
+  const acceptedFileTypes = getAcceptedFileExtensions(formData).join(',');
 
   const checkFileAllowed = (file: File): { ok: boolean, err: string } => {
-    const name = file.name.toLowerCase();
-    if (isSelf && isLabMaterial) {
-      if (name.endsWith('.gcode.3mf') || name.endsWith('.gcode')) return { ok: true, err: '' };
-      return { ok: false, err: bw.fileErrorGcode };
-    } else {
-      if ((name.endsWith('.3mf') && !name.endsWith('.gcode.3mf')) || name.endsWith('.stl')) return { ok: true, err: '' };
-      return { ok: false, err: bw.fileErrorStl };
-    }
+    const extension = resolveUploadExtension(file.name);
+    const allowed = getAcceptedFileExtensions(formData);
+    if (extension && allowed.includes(extension)) return { ok: true, err: '' };
+    return { ok: false, err: isSelf && isLabMaterial ? bw.fileErrorGcode : bw.fileErrorStl };
   };
 
   const autoFillPrintData = async (file: File) => {
@@ -334,12 +443,6 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
     } finally { setUploading(false); }
   };
 
-  const getEstimatedTimeString = () => {
-    const v = parseFloat(formData.estimatedTimeValue);
-    if (!v) return '';
-    return formData.estimatedTimeUnit === 'hours' ? `${v}h` : `${v}m`;
-  };
-
   const getPricePerGram = () => {
     const rule = pricing.find(r => r.material === formData.materialType);
     return rule?.pricePerGram || 0;
@@ -358,7 +461,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
   const totalCost = matCost + svcCost;
 
   const toggleColor = (color: string) => {
-    if (!selectedPrinter?.hasAMS) {
+    if (!selectedPrinterHasAMS) {
       setFormData(f => ({ ...f, colors: [color] }));
       return;
     }
@@ -382,33 +485,48 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
   ];
 
   const handleSubmit = async () => {
-    if (!confirmed) { setError(bw.confirmTermsError); return; }
+    if (!validateCurrentStep()) return;
+
+    if (!formData.jobName.trim()) {
+      setError(bw.jobNameRequired);
+      return;
+    }
+
+    if (isSelf && isLabMaterial) {
+      const materialError = validateBookingStep({
+        step: 2,
+        draft: formData,
+        availableColors,
+        uploadedFileName: uploadedFile?.fileName || formData.fileName,
+        selectedPrinterHasAMS,
+      });
+
+      if (materialError) {
+        setError(getValidationErrorMessage(materialError));
+        return;
+      }
+    }
+
+    const fileError = validateBookingStep({
+      step: 3,
+      draft: formData,
+      availableColors,
+      uploadedFileName: uploadedFile?.fileName || formData.fileName,
+      selectedPrinterHasAMS,
+    });
+    if (fileError) {
+      setError(getValidationErrorMessage(fileError));
+      return;
+    }
+
     setError('');
     setSubmitting(true);
     try {
-      const resolvedColors = formData.colors.map(c => c === 'Other' ? (formData.customColor || 'Other') : c);
-      const slotLabel = TIME_SLOTS.find(s => s.key === formData.preferredSlot)?.label || formData.preferredSlot;
-      const dateLabel = formData.preferredDate
-        ? new Date(formData.preferredDate + 'T12:00:00').toLocaleDateString('vi-VN')
-        : '';
-      const slotTime = [
-        dateLabel,
-        formData.preferredSubSlot ? `${slotLabel} (${formData.preferredSubSlot})` : slotLabel,
-      ].filter(Boolean).join(' - ');
-      await api.createJob({
-        printMode: formData.printMode,
-        jobName: formData.jobName,
-        description: formData.description,
-        fileName: formData.fileName || 'unknown.stl',
-        estimatedTime: getEstimatedTimeString(),
-        estimatedGrams: formData.estimatedGrams,
-        materialType: formData.materialType,
-        color: (isSelf && isLabMaterial) ? resolvedColors.join(', ') : '',
-        brand: formData.brand || undefined,
-        materialSource: formData.materialSource,
-        printerId: isSelf ? (formData.printerId || undefined) : undefined,
-        slotTime: isSelf ? slotTime : undefined,
-      });
+      const slotLabels = Object.fromEntries(TIME_SLOTS.map((slot) => [slot.key, slot.label]));
+      await api.createJob(buildCreateJobPayload({
+        draft: formData,
+        slotLabels,
+      }));
       onComplete();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : bw.submitFailed);
@@ -684,7 +802,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{bw.brandLabel}</label>
                     <div className="flex flex-wrap gap-2">
-                      {(BRAND_OPTIONS[formData.materialType] || BRAND_OPTIONS.PLA).map(b => (
+                      {(BRAND_OPTIONS[formData.materialType || MaterialType.PLA] || BRAND_OPTIONS.PLA).map(b => (
                         <button
                           key={b}
                           onClick={() => setFormData(f => ({ ...f, brand: f.brand === b ? '' : b }))}
@@ -1160,7 +1278,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({ onComplete, onCanc
                     <>
                       <div className="text-slate-500">{t('materialType')}:</div>
                       <div className="font-bold text-slate-900 dark:text-white">
-                        {formData.materialType}{formData.brand ? ` — ${formData.brand}` : ''}
+                        {formData.materialType || (isLabMaterial ? 'Chua khai bao' : t('ownMaterial'))}{formData.brand ? ` — ${formData.brand}` : ''}
                       </div>
                     </>
                   )}

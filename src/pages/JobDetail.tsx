@@ -23,6 +23,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLang } from '../contexts/LanguageContext';
 import { getJobDetailExperience, getUiText, fillText } from '../lib/uiText';
+import { getJobMaterialDetail } from '../lib/jobPresentation';
 
 interface JobDetailProps {
   job: PrintJob;
@@ -39,6 +40,10 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
   const [resubmitting, setResubmitting] = useState(false);
   const [resubmitDone, setResubmitDone] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const materialDetail = getJobMaterialDetail(job, {
+    ownMaterialLabel: 'Tu mang',
+    missingMaterialLabel: 'Chua khai bao',
+  });
 
   const handleFileDownload = async () => {
     if (!job.fileName) return;
@@ -219,7 +224,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="app-panel-soft px-4 py-4">
                     <p className="app-overline">{copy.jobDetail.materialTypeLabel}</p>
-                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.materialType} ({job.color})</p>
+                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{materialDetail}</p>
                   </div>
                   <div className="app-panel-soft px-4 py-4">
                     <p className="app-overline">{copy.jobDetail.materialSourceLabel}</p>
@@ -314,7 +319,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, onBack }) => {
 
                 <div className="space-y-4">
                   <div className="flex items-start justify-between gap-4 text-sm">
-                    <span className="font-medium text-slate-600 dark:text-[var(--landing-muted)]">{fillText(copy.jobDetail.materialCost, { type: job.materialType })}</span>
+                    <span className="font-medium text-slate-600 dark:text-[var(--landing-muted)]">{fillText(copy.jobDetail.materialCost, { type: job.materialType || materialDetail })}</span>
                     <span className="font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.cost.toLocaleString()}đ</span>
                   </div>
                   <div className="flex items-start justify-between gap-4 text-sm">

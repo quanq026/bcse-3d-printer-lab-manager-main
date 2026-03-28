@@ -81,8 +81,8 @@ export interface PrintJob {
   estimatedTime: string; // e.g., "3h 30m"
   estimatedGrams: number;
   actualGrams?: number;
-  materialType: MaterialType;
-  color: string;
+  materialType: MaterialType | null;
+  color: string | null;
   brand?: string;
   materialSource: MaterialSource;
   printMode?: 'self' | 'lab_assisted';

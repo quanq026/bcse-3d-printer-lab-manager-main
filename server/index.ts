@@ -15,6 +15,7 @@ import {
   CreateJobSchema, PatchJobSchema, PatchUserSchema, UpdateManagedPasswordSchema, ChangeOwnPasswordSchema,
   UpdatePricingSchema, UpdateServiceFeesSchema, PostMessageSchema,
 } from './validation.js';
+import { resolveUploadExtension } from '../src/lib/bookingRules';
 
 // ─── Load .env file (no dotenv dependency) ─────────────────────────────────
 try {
@@ -179,6 +180,62 @@ try { db.exec(`ALTER TABLE service_fees ADD COLUMN enabled INTEGER NOT NULL DEFA
 try { db.prepare(`UPDATE service_fees SET amount=100, description='Phí dịch vụ in hộ (đ/gram)' WHERE name='service_fee' AND amount=20000`).run(); } catch { }
 db.prepare(`INSERT OR IGNORE INTO lab_settings (key,value) VALUES ('terms_content',?)`).run('');
 db.prepare(`INSERT OR IGNORE INTO lab_settings (key,value) VALUES ('require_approval','0')`).run();
+
+function migratePrintJobsMaterialColumnsNullable() {
+  const columns = db.prepare("PRAGMA table_info('print_jobs')").all() as Array<{ name: string; notnull: number }>;
+  const materialColumn = columns.find((column) => column.name === 'material_type');
+  const colorColumn = columns.find((column) => column.name === 'color');
+
+  if (!materialColumn || !colorColumn || (!materialColumn.notnull && !colorColumn.notnull)) {
+    return;
+  }
+
+  db.exec(`
+    BEGIN TRANSACTION;
+    CREATE TABLE print_jobs_new (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      user_name TEXT NOT NULL,
+      job_name TEXT NOT NULL,
+      description TEXT,
+      file_name TEXT NOT NULL DEFAULT '',
+      estimated_time TEXT,
+      estimated_grams INTEGER NOT NULL DEFAULT 0,
+      actual_grams INTEGER,
+      material_type TEXT,
+      color TEXT,
+      material_source TEXT NOT NULL,
+      printer_id TEXT,
+      printer_name TEXT,
+      slot_time TEXT,
+      status TEXT NOT NULL DEFAULT 'Draft',
+      cost REAL NOT NULL DEFAULT 0,
+      rejection_reason TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      revision_note TEXT,
+      brand TEXT,
+      print_mode TEXT NOT NULL DEFAULT 'self',
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+    INSERT INTO print_jobs_new (
+      id,user_id,user_name,job_name,description,file_name,estimated_time,estimated_grams,actual_grams,
+      material_type,color,material_source,printer_id,printer_name,slot_time,status,cost,rejection_reason,
+      notes,created_at,updated_at,revision_note,brand,print_mode
+    )
+    SELECT
+      id,user_id,user_name,job_name,description,file_name,estimated_time,estimated_grams,actual_grams,
+      material_type,color,material_source,printer_id,printer_name,slot_time,status,cost,rejection_reason,
+      notes,created_at,updated_at,revision_note,brand,print_mode
+    FROM print_jobs;
+    DROP TABLE print_jobs;
+    ALTER TABLE print_jobs_new RENAME TO print_jobs;
+    COMMIT;
+  `);
+}
+
+migratePrintJobsMaterialColumnsNullable();
 
 // Performance indexes
 try { db.exec(`CREATE INDEX IF NOT EXISTS idx_email_verif_email ON email_verifications(email)`); } catch { }
@@ -362,16 +419,16 @@ app.use('/api', globalLimiter);
 // ─── Multer ────────────────────────────────────────────────────────────────
 const storage = multer.diskStorage({
   destination: UPLOADS_DIR,
-  filename: (req, file, cb) => cb(null, `${randomUUID()}${path.extname(file.originalname).toLowerCase()}`),
+  filename: (req, file, cb) => cb(null, `${randomUUID()}${resolveUploadExtension(file.originalname) || path.extname(file.originalname).toLowerCase()}`),
 });
 const upload = multer({
   storage, limits: { fileSize: 50 * 1024 * 1024 }, fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExts = new Set(['.stl', '.3mf', '.gcode']);
+    const ext = resolveUploadExtension(file.originalname);
+    const allowedExts = new Set(['.stl', '.3mf', '.gcode', '.gcode.3mf']);
     const allowedMimePrefixes = ['application/', 'model/', 'text/'];
     const mime = (file.mimetype || '').toLowerCase();
     const allowedMime = !mime || allowedMimePrefixes.some((prefix) => mime.startsWith(prefix));
-    cb(null, allowedExts.has(ext) && allowedMime);
+    cb(null, !!ext && allowedExts.has(ext) && allowedMime);
   }
 });
 
@@ -462,6 +519,33 @@ function jobCode() {
     const existing = db.prepare('SELECT id FROM print_jobs WHERE id=?').get(id) as any;
     if (!existing) return id;
   }
+}
+
+function computeJobCost({
+  estimatedGrams,
+  materialType,
+  materialSource,
+  printMode,
+}: {
+  estimatedGrams: number;
+  materialType: string | null;
+  materialSource: string;
+  printMode: string;
+}) {
+  const normalizedGrams = estimatedGrams || 0;
+  const pricing = materialType
+    ? db.prepare('SELECT price_per_gram FROM pricing_rules WHERE material=?').get(materialType) as any
+    : null;
+  const serviceFeeRow = db.prepare("SELECT amount, enabled FROM service_fees WHERE name='service_fee'").get() as any;
+  const serviceFeePerGram = (serviceFeeRow?.enabled ? serviceFeeRow?.amount : 0) || 0;
+  const materialCostPerGram = pricing?.price_per_gram || 0;
+
+  if (printMode === 'self') {
+    return materialSource === 'Lab' ? normalizedGrams * materialCostPerGram : 0;
+  }
+
+  const materialCost = materialSource === 'Lab' ? normalizedGrams * materialCostPerGram : 0;
+  return materialCost + normalizedGrams * serviceFeePerGram;
 }
 
 function mapJob(j: any) {
@@ -586,30 +670,25 @@ app.get('/api/jobs/:id', requireAuth, (req: AuthReq, res: Response) => {
 app.post('/api/jobs', writeLimiter, requireAuth, validate(CreateJobSchema), (req: AuthReq, res: Response) => {
   const { jobName, description, fileName, estimatedTime, estimatedGrams, materialType, color, brand, materialSource, printMode, printerId, slotTime } = req.body;
   const resolvedPrintMode = printMode === 'lab_assisted' ? 'lab_assisted' : 'self';
-  const resolvedMaterialType = materialType || 'PLA';
-  const resolvedColor = color || '';
+  const resolvedMaterialType = materialType ?? null;
+  const resolvedColor = color ?? null;
   // Daily limit: students can only submit 2 jobs per day
   if (req.user.role === 'Student') {
     const todayCount = (db.prepare("SELECT COUNT(*) as c FROM print_jobs WHERE user_id=? AND DATE(created_at)=DATE('now','localtime') AND status NOT IN ('Cancelled')").get(req.user.id) as any).c;
     if (todayCount >= 2) { res.status(429).json({ error: 'Bạn đã đặt tối đa 2 lệnh in trong hôm nay. Vui lòng quay lại vào ngày mai.' }); return; }
   }
-  const pricing = db.prepare('SELECT price_per_gram FROM pricing_rules WHERE material=?').get(resolvedMaterialType) as any;
-  const serviceFeeRow = db.prepare("SELECT amount, enabled FROM service_fees WHERE name='service_fee'").get() as any;
-  const serviceFeePerGram = (serviceFeeRow?.enabled ? serviceFeeRow?.amount : 0) || 0;
-  const matCostPerGram = pricing?.price_per_gram || 0;
-  let cost = 0;
-  if (resolvedPrintMode === 'self') {
-    cost = materialSource === 'Lab' ? (estimatedGrams || 0) * matCostPerGram : 0;
-  } else {
-    const matCost = materialSource === 'Lab' ? (estimatedGrams || 0) * matCostPerGram : 0;
-    cost = matCost + (estimatedGrams || 0) * serviceFeePerGram;
-  }
+  const cost = computeJobCost({
+    estimatedGrams: estimatedGrams || 0,
+    materialType: resolvedMaterialType,
+    materialSource,
+    printMode: resolvedPrintMode,
+  });
   const printer = printerId ? db.prepare('SELECT name FROM printers WHERE id=?').get(printerId) as any : null;
   const initialStatus = resolvedPrintMode === 'lab_assisted' ? 'Pending review' : 'Submitted';
   const id = jobCode();
   const now = new Date().toISOString();
   db.prepare(`INSERT INTO print_jobs (id,user_id,user_name,job_name,description,file_name,estimated_time,estimated_grams,material_type,color,brand,material_source,print_mode,printer_id,printer_name,slot_time,status,cost,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .run(id, req.user.id, req.user.fullName, jobName, description || null, fileName || '', estimatedTime || null, estimatedGrams || 0, resolvedMaterialType, resolvedColor, brand || null, materialSource, resolvedPrintMode, printerId || null, printer?.name || null, slotTime || null, initialStatus, cost, now, now);
+    .run(id, req.user.id, req.user.fullName, jobName, description || null, fileName || '', estimatedTime || null, estimatedGrams || 0, resolvedMaterialType, resolvedColor, brand || null, materialSource, resolvedPrintMode, printerId || null, printer?.name || null, slotTime ?? null, initialStatus, cost, now, now);
   logAction(req.user.id, req.user.fullName, 'CREATE_JOB', `${id} - ${jobName} [${resolvedPrintMode}/${materialSource}]`);
   res.status(201).json(mapJob(db.prepare('SELECT * FROM print_jobs WHERE id=?').get(id) as any));
 });
@@ -649,17 +728,12 @@ app.patch('/api/jobs/:id', writeLimiter, requireAuth, validate(PatchJobSchema), 
   if (estimatedTime !== undefined) updates.estimated_time = estimatedTime;
   if (estimatedGrams !== undefined) {
     updates.estimated_grams = estimatedGrams;
-    // Recalculate cost
-    const pricing = db.prepare('SELECT price_per_gram FROM pricing_rules WHERE material=?').get(job.material_type) as any;
-    const serviceFeeRow = db.prepare("SELECT amount, enabled FROM service_fees WHERE name='service_fee'").get() as any;
-    const matCostPerGram = pricing?.price_per_gram || 0;
-    const serviceFeePerGram = (serviceFeeRow?.enabled ? serviceFeeRow?.amount : 0) || 0;
-    if (job.print_mode === 'self') {
-      updates.cost = job.material_source === 'Lab' ? estimatedGrams * matCostPerGram : 0;
-    } else {
-      const matCost = job.material_source === 'Lab' ? estimatedGrams * matCostPerGram : 0;
-      updates.cost = matCost + estimatedGrams * serviceFeePerGram;
-    }
+    updates.cost = computeJobCost({
+      estimatedGrams,
+      materialType: job.material_type,
+      materialSource: job.material_source,
+      printMode: job.print_mode || 'self',
+    });
   }
   const setClauses = Object.keys(updates).map(k => `${toSnake(k)}=?`).join(', ');
   db.prepare(`UPDATE print_jobs SET ${setClauses} WHERE id=?`).run(...Object.values(updates), req.params.id);

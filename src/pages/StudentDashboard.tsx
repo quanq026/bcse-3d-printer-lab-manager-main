@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   ArrowRight,
@@ -13,6 +13,7 @@ import { motion } from 'motion/react';
 import { AppIcon } from '../components/AppIcon';
 import { useLang } from '../contexts/LanguageContext';
 import { api } from '../lib/api';
+import { getJobMaterialSummary } from '../lib/jobPresentation';
 import { fillText, getUiText } from '../lib/uiText';
 import { cn } from '../lib/utils';
 import { StatusChip } from '../components/StatusChip';
@@ -80,31 +81,42 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
   const [historySearch, setHistorySearch] = useState('');
   const [historyFilter, setHistoryFilter] = useState('all');
 
-  useEffect(() => {
-    let isMounted = true;
+  const getMaterialSummary = useCallback((job: PrintJob) => getJobMaterialSummary(job, {
+    ownMaterialLabel: 'Tu mang',
+    missingMaterialLabel: 'Chua khai bao',
+  }), []);
 
-    api.getJobs()
-      .then((data) => {
-        if (isMounted) setJobs(data);
-      })
-      .catch(console.error)
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
+  const loadDashboardData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [jobsData, statsData, dailyStatsData] = await Promise.all([
+        api.getJobs(),
+        role !== Role.STUDENT ? api.getStats().catch(() => null) : Promise.resolve(null),
+        role !== Role.STUDENT ? api.getDailyStats().catch(() => []) : Promise.resolve([]),
+      ]);
 
-    if (role !== Role.STUDENT) {
-      api.getStats().then((data) => {
-        if (isMounted) setStats(data);
-      }).catch(() => { });
-      api.getDailyStats().then((data) => {
-        if (isMounted) setDailyStats(data);
-      }).catch(() => { });
+      setJobs(jobsData);
+      setStats(statsData);
+      setDailyStats(dailyStatsData);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
-
-    return () => {
-      isMounted = false;
-    };
   }, [role]);
+
+  useEffect(() => {
+    void loadDashboardData();
+  }, [loadDashboardData]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      void loadDashboardData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loadDashboardData]);
 
   const myJobs = useMemo(() => {
     const scopedJobs = role === Role.STUDENT
@@ -217,7 +229,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
           <p className="mt-2 truncate text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.jobName}</p>
           <div className="mt-3 grid gap-1 text-xs text-slate-500 dark:text-[var(--landing-muted)]">
             <p>{job.printerName || shared.notAssigned}</p>
-            <p>{job.materialType} / {job.color}</p>
+            <p>{getMaterialSummary(job)}</p>
             <p>{job.slotTime || shared.waitingApproval}</p>
           </div>
         </div>
@@ -258,7 +270,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
               </td>
               <td className="px-6 py-5 align-top">
                 <div className="flex flex-col text-sm text-slate-600 dark:text-[var(--landing-muted)]">
-                  <span>{job.materialType} / {job.color}</span>
+                  <span>{getMaterialSummary(job)}</span>
                   <span className="mt-1 text-xs text-slate-400 dark:text-white/40">{fillText(shared.createdOn, { date: formatDate(job.createdAt) })}</span>
                 </div>
               </td>
@@ -713,7 +725,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
           <p className="mt-2 truncate text-sm font-semibold text-slate-900 dark:text-[var(--landing-text)]">{job.jobName}</p>
           <div className="mt-3 grid gap-1 text-xs text-slate-500 dark:text-[var(--landing-muted)]">
             <p>{job.printerName || t('notAssigned')}</p>
-            <p>{job.materialType} / {job.color}</p>
+            <p>{getMaterialSummary(job)}</p>
             <p>{job.slotTime || t('waitingApproval')}</p>
           </div>
         </div>
@@ -754,7 +766,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNewBooking
               </td>
               <td className="px-6 py-5 align-top">
                 <div className="flex flex-col text-sm text-slate-600 dark:text-[var(--landing-muted)]">
-                  <span>{job.materialType} / {job.color}</span>
+                  <span>{getMaterialSummary(job)}</span>
                   <span className="mt-1 text-xs text-slate-400 dark:text-white/40">{fillText(shared.createdOn, { date: formatDateWithLocale(job.createdAt, locale, shared.noDate) })}</span>
                 </div>
               </td>
